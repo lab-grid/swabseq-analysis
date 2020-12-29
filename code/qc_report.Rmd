@@ -1,0 +1,422 @@
+---
+title: "QC Report"
+date: "Updated: `r format(Sys.time())`"
+output:
+      pdf_document:
+        highlight: tango
+        # number_sections: yes
+        # toc: yes
+        # toc_depth: 2
+        # toc_float: yes
+params:
+  experiment: NA
+  run_info: NA
+  amp.match.summary: NA
+  sum_matched_df: NA
+  results: NA
+  classification: NA
+  read_quality: NA
+  cycl_qual_plot: NA
+  seq_cont_per_cycle: NA
+  read_freq_plot: NA
+  # results.summary: NA
+  seq.metrics: NA
+  base_calls_plot: NA
+  ind_na: NA
+---
+
+## `r paste("Experiment:", params$experiment)`
+
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(RColorBrewer)
+library(GGally)
+library(scales)
+library(viridis)
+# library(kableExtra)
+# library(ggpubr)
+
+```
+
+\scriptsize
+
+### Run info
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+params$run_info %>%
+  kable(df_print = "tibble")
+```
+
+### Sequencer metrics
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+params$seq.metrics %>%
+  kable()
+```
+
+### Alignment summary
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+params$sum_matched_df %>% 
+  kable()
+```
+
+### Sample Classification
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+params$classification %>%
+  group_by(classification) %>%
+  summarise(total = n()) %>%
+  kable()
+```
+
+\normalsize
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+##################
+# Modify columns #
+##################
+df <- params$results
+
+df$Col=as.factor(gsub('^.', '', df$Sample_Well))
+df$Row=factor(gsub('..$', '', df$Sample_Well), levels=rev(toupper(letters[1:8])))
+df$Sample=paste0(df$Plate_ID, '-' ,df$Sample_Well)
+df$Plate_ID=as.factor(df$Plate_ID)
+df$Plate_ID=factor(df$Plate_ID, levels(df$Plate_ID)[order(as.numeric(gsub('Plate', '', levels(df$Plate_ID))))])  
+# df$Plate_384=as.factor(df$Plate_384)
+# df$amplicon=factor(df$amplicon,sample_class level=c('S2', 'S2_spike', 'RPP30', 'RPP30_spike'))
+
+################################################
+# Filter samples that had < 2000 S2 + S2 spike #
+################################################
+
+remove <- c(
+  df %>%
+    filter(!is.na(Plate_ID),
+           !is.na(amplicon)) %>% 
+    # group_by_at(names(df)[!names(df) %in% c("Count", "amplicon")]) %>% 
+    group_by(mergedIndex) %>% 
+    summarise(S2_spike = sum(Count[grepl("spike",amplicon)]),
+            S2 = sum(Count[amplicon == "S2"]),
+            RPP30 = sum(Count[amplicon == "RPP30"])) %>% 
+  # pivot_wider(names_from = amplicon, values_from = Count) %>% 
+  dplyr::select(mergedIndex, RPP30, S2, S2_spike) %>% 
+  filter(RPP30 < 10) %>% 
+  pull(mergedIndex),
+  df %>%
+    filter(!is.na(Plate_ID),
+           !is.na(amplicon)) %>% 
+    # group_by_at(names(df)[!names(df) %in% c("Count", "amplicon")]) %>% 
+    group_by(mergedIndex) %>% 
+    summarise(S2_spike = sum(Count[grepl("spike",amplicon)]),
+            S2 = sum(Count[amplicon == "S2"]),
+            RPP30 = sum(Count[amplicon == "RPP30"])) %>% 
+  dplyr::select(mergedIndex, RPP30, S2, S2_spike) %>% 
+  filter(S2 + S2_spike < 500) %>% 
+  pull(mergedIndex)
+  ) %>% 
+  unique()
+```
+
+## Plate Map Plot
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+df %>%
+  filter(!is.na(Plate_ID)) %>% 
+  ggplot(aes(x=Col, y=Row, fill=log10(Count))) + 
+  # geom_raster() +
+  geom_tile() +
+  coord_equal() +
+  facet_grid(amplicon~Plate_ID) +
+  scale_fill_viridis_c(option = 'plasma') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+```
+
+\newpage
+
+## 384 Index Plot
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+myPalette <- colorRampPalette(brewer.pal(9, "Greys"))
+
+df %>%
+  filter(!is.na(pm_384)) %>%
+  # filter(!is.na(amplicon)) %>% 
+  mutate(Count = log10(Count)) %>% 
+  # filter(Count > 1) %>% 
+  ggplot(aes(x=col_384, y=row_384, fill = Count)) +
+  # geom_raster() +
+  geom_tile() +
+  coord_equal() +
+  facet_grid(amplicon~pm_384) +
+  scale_x_continuous(breaks = 1:24) +
+  scale_y_continuous(breaks = 1:16, trans = "reverse") +
+  # coord_cartesian(xlim = c(1,24), ylim = c(1,16)) +
+  # ylim(1,16) +
+  # xlim(1,24) +
+  # scale_fill_gradientn(colours = myPalette(100)) +
+  scale_fill_viridis_c(option = 'plasma', na.value = "white") +
+  xlab("384 Plate Column") +
+  ylab("384 Plate Row") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+```
+
+\newpage
+
+## Sample Categorization
+Classifies samples as COVID positive/negative, or failure type. Table at end of document.
+
+```{r echo=FALSE, fig.height=10, fig.width=12}
+classification <- params$classification %>%
+  dplyr::select(index, index2, pm_384, row_384, col_384, Plate_ID, Sample_Well, S2_spike, S2, RPP30, s2_vs_spike, classification) %>% 
+  filter(!is.na(Plate_ID)) %>% 
+  mutate(Col = as.factor(gsub('^.', '', Sample_Well)),
+         Row = factor(gsub('..$', '', Sample_Well), levels=rev(toupper(letters[1:8]))),
+         Plate_ID = factor(Plate_ID, levels = unique(Plate_ID)[order(as.numeric(gsub('Plate', '', unique(Plate_ID))))]))
+
+classification %>% 
+  ggplot(aes(x=Col, y=Row, fill= classification)) + 
+  # geom_raster() +
+  geom_tile() +
+  coord_equal() +
+  facet_wrap(~Plate_ID, ncol = 4) +
+  theme(legend.position = "top")
+```
+
+\newpage
+
+<!-- ## Inconclusive Samples (Re-test) -->
+<!-- Table at end of document -->
+
+<!-- ```{r echo=FALSE, fig.height=10, fig.width=12} -->
+<!-- params$classification %>% -->
+<!--   filter(!is.na(Plate_ID)) %>%  -->
+<!--   mutate(Col = as.factor(gsub('^.', '', Sample_Well)), -->
+<!--          Row = factor(gsub('..$', '', Sample_Well), levels=rev(toupper(letters[1:8])))) %>%  -->
+<!--   ggplot(aes(x=Col, y=Row, fill= classification == "inconclusive")) +  -->
+<!--   # geom_raster() + -->
+<!--   geom_tile() + -->
+<!--   coord_equal() + -->
+<!--   facet_wrap(~Plate_ID, ncol = 4) + -->
+<!--   scale_fill_manual(name = "Inconclusive Result:", -->
+<!--                     values = c("#FFFFFF", "#000000")) + -->
+<!--   theme(legend.position = "top") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+## Read Counts per Well
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+df %>%
+  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(amplicon)) %>% 
+  group_by(Plate_ID, Col, Row) %>% 
+  summarise(read_counts = sum(Count)) %>% 
+  ggplot(aes(x=Col, y=Row, fill=log10(read_counts))) + 
+  geom_tile() +
+  coord_equal() +
+  facet_wrap(~Plate_ID, ncol = 4) +
+  scale_fill_viridis_c(option = 'plasma') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+```
+
+## Read Counts per Well
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+df %>%
+  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(amplicon)) %>% 
+  group_by(Plate_ID, Col, Row) %>% 
+  summarise(read_counts = sum(Count)) %>% 
+  ggplot(aes(x=Col, y=Row, fill=log10(read_counts))) + 
+  geom_tile() +
+  coord_equal() +
+  facet_wrap(~Plate_ID, ncol = 4) +
+  scale_fill_viridis_c(option = 'plasma') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+```
+
+
+\newpage
+
+## Classification vs Read Counts per Well
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+df %>%
+  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(amplicon)) %>% 
+  group_by(Plate_ID, Col, Row) %>% 
+  summarise(read_counts = sum(Count)) %>% 
+  left_join(classification, by = c("Plate_ID","Col","Row")) %>% 
+  ggplot(aes(x = read_counts, fill = classification)) + 
+  geom_histogram(bins = 50) +
+  facet_wrap(~classification, ncol = 1, scales = "free_y") +
+  scale_x_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7)) +
+  annotation_logticks(sides = "b") +
+  theme_bw()
+```
+
+\newpage
+
+## Index Swapping
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+df %>% 
+  filter(!is.na(index),
+         !is.na(index2),
+         !is.na(amplicon)) %>% 
+  group_by(index, index2) %>% 
+  summarise(n = sum(Count)) %>% 
+  ggplot(aes(y=index, x=index2, fill=log10(n))) + 
+  # geom_raster() +
+  geom_tile() +
+  scale_fill_gradient(
+    low = "#FFFFFF",
+    high = "#000000"
+  ) +
+  # scale_fill_viridis_c(option = 'plasma') +
+  coord_equal() +
+  # facet_wrap(~amplicon) +
+  theme_classic() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+```
+
+\newpage
+
+## Swap events for S2
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#scatter plots of s2 reads vs swaps where swaps are the marginal counts (or rates) of swapped reads for each of the indices shared for each sample
+mat_df <- df %>% 
+  filter(amplicon == "S2") %>% 
+  dplyr::select(index, index2, Count)
+
+
+
+missing_ind1 <- tibble(index = levels(df$index)[which(!levels(mat_df$index) %in% unique(mat_df$index))],
+                       index2 = NA,
+                       Count = 0)
+missing_ind2 <- tibble(index = NA,
+                       index2 = levels(df$index2)[which(!levels(mat_df$index2) %in% unique(mat_df$index2))],
+                       Count = 0)
+
+mat_df <- rbind(mat_df, missing_ind1, missing_ind2) %>% 
+  pivot_wider(values_from = Count, names_from = index)
+row_names <- mat_df$index2
+mat_df <- as.matrix(mat_df[,2:ncol(mat_df)])
+rownames(mat_df) <- row_names
+
+mat_df[which(is.na(mat_df))] <- 0
+
+col_order <- levels(df$index)[levels(df$index) %in% colnames(mat_df)]
+row_order <- levels(df$index2)[levels(df$index2) %in% rownames(mat_df)]
+
+mat_df <- mat_df[row_order,col_order]
+
+# pheatmap::pheatmap(mat_df, cluster_rows = F, cluster_cols = F, show_colnames = F, show_rownames = F)
+
+UDIs <- diag(mat_df)
+diag(mat_df) <- 0
+ind1_mismatch <- apply(mat_df, 2, function(x) sum(x))
+ind2_mismatch <- apply(mat_df, 1, function(x) sum(x))
+
+rbind(
+  tibble(
+    UDIs = UDIs,
+    index_mismatch = ind1_mismatch,
+    index = "index1"
+  ),
+  tibble(
+    UDIs = UDIs,
+    index_mismatch = ind2_mismatch,
+    index = "index2"
+  )
+) %>% 
+  ggplot(aes(x = UDIs, y = index_mismatch)) +
+  geom_point() +
+  scale_x_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7)) +
+  scale_y_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7)) +
+  # coord_fixed(ratio = 1, xlim = NULL, ylim = NULL, expand = TRUE, clip = "on") +
+  facet_wrap(~index, ncol = 1) +
+  theme_minimal()
+```
+
+\newpage 
+
+## Cycle-specific Quality Distribution
+
+```{r echo=FALSE, message=FALSE}
+eval(params$cycl_qual_plot + 
+  theme_minimal() + 
+  scale_fill_viridis_c(limits = c(0,40)))
+```
+
+## Sequence quality per base/cycle
+
+```{r echo=FALSE}
+eval(params$read_quality)
+```
+
+## Base calls per cycle
+
+```{r echo=FALSE}
+eval(params$base_calls_plot)
+```
+
+## Read frequency plot
+
+```{r echo=FALSE}
+eval(params$read_freq_plot)
+```
+
+\newpage
+
+# COVID Positive Samples
+
+\tiny
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+classification %>%
+  filter(classification == "COVID_pos") %>%
+  dplyr::select(-index, -index2) %>% 
+  arrange(Plate_ID, Sample_Well) %>% 
+  # mutate(
+  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
+  #                 background = ifelse(RPP30 < 10, "red", "white"))
+  # ) %>%
+  # kable(escape = F, booktabs = F) #%>%
+  # kable_styling()
+  kable()
+```
+
+# Inconclusive Samples (retest)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+classification %>%
+  filter(grepl("failed:", classification)) %>%
+  dplyr::select(-index, -index2, -s2_vs_spike) %>% 
+  arrange(Plate_ID, Sample_Well) %>% 
+  # mutate(
+  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
+  #                 background = ifelse(RPP30 < 10, "red", "white"))
+  # ) %>%
+  # kable(escape = F, booktabs = F) #%>%
+  # kable_styling()
+  kable()
+```
+
+\normalsize

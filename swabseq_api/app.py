@@ -5,7 +5,6 @@ from flask import jsonify, abort, Response, make_response
 from werkzeug.middleware.proxy_fix import ProxyFix
 import boto3, base64
 import subprocess
-import shutil
 
 #Authentication
 from flask import request
@@ -76,7 +75,7 @@ class DescribeSmiles(Resource):
 
     def post(self):
         """
-        Returns results files for a valid Basespace ID string, passed as json {basespace:string} with a POST request
+        Returns results files for a valid Basespace run name string, passed as json {basespace:string} with a POST request
         """
 
         def generate(data_dict):
@@ -95,27 +94,30 @@ class DescribeSmiles(Resource):
         origin = request.headers['Origin']
         #print(origin, flush=True)
         #print(request, flush=True)
+        #print(request.headers, flush=True)
         if "application/json" in request.headers['Content-Type']:
+            print(request.get_json(), flush=True)
             data_dict = request.get_json()
             if "basespace" in data_dict:
                 basespace_id = data_dict["basespace"]
             else:
                 basespace_id = None
             if not basespace_id:
-                response = make_response(jsonify("Error. Not a valid Basespace ID string"), 404)
+                response = make_response(jsonify("Error. Not a valid Basespace run name string"), 404)
                 response = add_headers(response, origin)
                 return response
             else:
                 #Run R script and zip results to generate temp file
                 rundir = "/app/" + basespace_id + "/"
-                results_file = "results.zip"
+                results_file = "/tmp/results.zip"
+                results_file_base = "/tmp/results"
                 subprocess.call(["Rscript", "--vanilla", "code/countAmpliconsAWS.R", "--rundir", rundir, "--basespaceID", basespace_id, "--threads", "8"])
-                shutil.make_archive(results_file, 'zip', rundir)
+                subprocess.call(["zip", "-r", results_file, rundir+"LIMS_results.csv", rundir+"run_info.csv", rundir+basespace_id+".pdf", rundir+"countTable.csv", rundir+"SampleSheet.csv"])
                 return send_file(results_file, mimetype="application/zip",
                      attachment_filename="results.zip", as_attachment=True)
 
         else:
-            response = make_response(jsonify("Error. Not a valid Basespace ID. Please provide json with field basespace:<Basespace ID>"), 404)
+            response = make_response(jsonify("Error. Not a valid Basespace run name. Please provide json with field basespace:<Basespace ID>"), 404)
             response = add_headers(response, origin)
             return response
 

@@ -49,6 +49,7 @@ RUN install2.r --error \
     BiocManager \
     seqinr \
     viridis \
+    GGally \
     reader \
     plater \
     XML \

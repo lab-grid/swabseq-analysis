@@ -4,7 +4,7 @@ message("Loading Libraries")
 
 suppressMessages(library(argparser))
 p = arg_parser("utility to count amplicons for SwabSeq")
-p=add_argument(p,"--rundir",  default=".", help="path containing SampleSheet")
+p=add_argument(p,"--rundir",  default=".", help="path to run")
 p=add_argument(p,"--basespaceID",  default=NA, help="BaseSpace Run ID")
 p=add_argument(p,"--threads", default=1, help="number of threads for bcl2fastq & amatch")
 args=parse_args(p) 
@@ -14,6 +14,7 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(Rqc))
 suppressMessages(library(savR))
 suppressMessages(library(Biostrings))
+suppressMessages(library(xml2))
 
 
 rundir=args$rundir
@@ -35,18 +36,21 @@ if (file.exists(rundir)){
 #-----------------------------------------------------------------------------------------------------
 
 # if fastqs don't exist grab them from basespace
-fastqR1  <- paste0(rundir, 'out/Undetermined_S0_R1_001.fastq.gz')
+#fastqR1  <- paste0(rundir, 'out/Undetermined_S0_R1_001.fastq.gz')
+fastqR1  <- 'out/Undetermined_S0_R1_001.fastq.gz'
+
 if(!file.exists(fastqR1)) {
   #Pull BCLs from basespace [skip this section if you already placed bcls in rundir/bcls/] ------------
   #if running miseq then paste run id here
   #if miseq run then grab from basespace, otherwise place bcls here and skip lines 12-23
   
-  if(is.na(basespaceID)){
-    basespaceID <- tail(strsplit(rundir,"/")[[1]],1)
-    system(paste("bs download run --name", basespaceID, "-o ."))
-  } else{
-    system(paste("bs download run --id", basespaceID, "-o ."))
-  }
+  #if(is.na(basespaceID)){
+  #  basespaceID <- tail(strsplit(rundir,"/")[[1]],1)
+  #  system(paste("bs download run --name", basespaceID, "-o ."))
+  #} else{
+  #  system(paste("bs download run --name", basespaceID, "-o ."))
+  #}
+  system(paste("bs download run --name", basespaceID, "-o ."))
   
   # run bcl2fastq to generate fastq.gz files (no demux is happening here)
   #setwd(paste0(rundir,'bcls/'))
@@ -57,7 +61,8 @@ if(!file.exists(fastqR1)) {
   #-----------------------------------------------------------------------------------------------------
 }
 
-setwd(file.path(rundir))
+#setwd(file.path(rundir))
+rundir <- paste0(getwd(),"/")
 
 # Align
 system(paste("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_tables/"))
@@ -94,11 +99,11 @@ results <- results %>%
   mutate(row_384 = as.numeric(row_384),
          col_384 = as.numeric(col_384))
 
-ss <- ss %>%
-  left_join(pm384) %>%
-  separate(pm, into = c("pm_384","row_384","col_384")) %>%
-  mutate(row_384 = as.numeric(row_384),
-         col_384 = as.numeric(col_384))
+#ss <- ss %>%
+#  left_join(pm384) %>%
+#  separate(pm, into = c("pm_384","row_384","col_384")) %>%
+#  mutate(row_384 = as.numeric(row_384),
+#         col_384 = as.numeric(col_384))
 
 
 
@@ -115,7 +120,7 @@ saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 
 classification <- results %>%
   filter(!is.na(Plate_ID)) %>% 
-  right_join(ss) %>% 
+  #right_join(ss) %>% 
   group_by_at(names(.)[!names(.) %in% c("Count", "amplicon")]) %>% 
   summarise(S2_spike = sum(Count[grepl("S2_spike_0",amplicon)], na.rm = TRUE),
             S2 = sum(Count[amplicon == "S2"], na.rm = TRUE),

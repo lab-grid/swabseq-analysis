@@ -1,1 +1,0 @@
-curl -i -H "Origin: localhost" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" -H "Content-type: application/json" -X POST -d'{"basespace": "076"}' http://0.0.0.0:5000/swabseq/analyze/ > test.zip

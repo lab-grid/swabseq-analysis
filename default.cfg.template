@@ -1,0 +1,2 @@
+apiServer   = ${BASESPACE_API_SERVER}
+accessToken = ${BASESPACE_ACCESS_TOKEN}

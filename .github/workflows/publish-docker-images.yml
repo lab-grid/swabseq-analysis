@@ -27,12 +27,11 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+          aws-region: us-west-1
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Prepare
-        id: prep
+      - name: Build, tag, and push image to Amazon ECR
         run: |
           DOCKER_IMAGE=${{ steps.login-ecr.outputs.registry }}/swabseq-analysis-server
           VERSION=edge
@@ -43,23 +42,16 @@ jobs:
           elif [[ $GITHUB_REF == refs/pull/* ]]; then
             VERSION=pr-${{ github.event.number }}
           fi
-          TAGS="${DOCKER_IMAGE}:latest,${DOCKER_IMAGE}:${VERSION}"
-          if [ "${{ github.event_name }}" = "push" ]; then
-            TAGS="$TAGS,${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
+
+          docker build -t "${DOCKER_IMAGE}:latest" .
+          docker tag "${DOCKER_IMAGE}:latest" "${DOCKER_IMAGE}:${VERSION}"
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "${DOCKER_IMAGE}:latest"
+            docker push "${DOCKER_IMAGE}:${VERSION}"
           fi
-          echo ::set-output name=version::${VERSION}
-          echo ::set-output name=tags::${TAGS}
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-      - name: Push to Amazon ECR
-        uses: docker/build-push-action@v2
-        with:
-          registry: ${{ steps.login-ecr.outputs.registry }}
-          repository: ${{ steps.login-ecr.outputs.registry }}/swabseq-analysis-server
-          context: .
-          file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prep.outputs.tags }}
-          labels: |
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          if [ "${{ github.event_name }}" = "push" ]; then
+            docker tag "${DOCKER_IMAGE}:latest" "${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              docker push "${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
+            fi
+          fi

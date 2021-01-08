@@ -7,7 +7,7 @@ on:
     types: [published]
 jobs:
   publish:
-    name: Build and push labflow/swabseq-analysis-server docker image
+    name: Build and push swabseq-analysis-server docker image
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -27,6 +27,55 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          DOCKER_IMAGE=${{ steps.login-ecr.outputs.registry }}/swabseq-analysis-server
+          VERSION=edge
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          elif [[ $GITHUB_REF == refs/heads/* ]]; then
+            VERSION=$(echo ${GITHUB_REF#refs/heads/} | sed -r 's#/+#-#g')
+          elif [[ $GITHUB_REF == refs/pull/* ]]; then
+            VERSION=pr-${{ github.event.number }}
+          fi
+
+          docker build -t "${DOCKER_IMAGE}:latest" .
+          docker tag "${DOCKER_IMAGE}:latest" "${DOCKER_IMAGE}:${VERSION}"
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            docker push "${DOCKER_IMAGE}:latest"
+            docker push "${DOCKER_IMAGE}:${VERSION}"
+          fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            docker tag "${DOCKER_IMAGE}:latest" "${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              docker push "${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
+            fi
+          fi
+  ginko-publish:
+    name: Build and push swabseq-analysis-server docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Setup Basespace configuration
+        uses: nowactions/envsubst@v1
+        with:
+          input: ./default.cfg.template
+          output: ./default.cfg
+        env:
+          BASESPACE_API_SERVER: ${{secrets.BASESPACE_API_SERVER}}
+          BASESPACE_ACCESS_TOKEN: ${{secrets.BASESPACE_ACCESS_TOKEN}}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.GINKGO_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.GINKGO_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-west-1
       - name: Login to Amazon ECR
         id: login-ecr

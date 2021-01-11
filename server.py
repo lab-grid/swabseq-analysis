@@ -25,6 +25,7 @@ app.config['AUTH0_TOKEN_URL'] = os.environ.get('AUTH0_TOKEN_URL', '')
 app.config['RESTX_JSON'] = {'cls': JSONEncoder}  # Add support for serializing datetime/date
 app.config['SERVER_VERSION'] = os.environ.get('SERVER_VERSION', 'local')
 app.config['SERVER_NAME'] = os.environ.get('SERVER_NAME', app.config.get('SERVER_NAME'))
+app.config['RSCRIPT_THREADS'] = int(os.environ.get('RSCRIPT_THREADS', '8'))
 
 
 # API Documentation -----------------------------------------------------------

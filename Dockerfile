@@ -91,4 +91,4 @@ ENV PYTHONPATH="${RBASE}:${PYTHONPATH}"
 ENV FLASK_APP=/app/main.py
 ENV SERVER_VERSION=$SERVER_VERSION
 
-CMD gunicorn --bind 0.0.0.0:${PORT} main:app --workers 4
+CMD python3 -m gunicorn.app.wsgiapp --bind 0.0.0.0:${PORT} --workers 4 main:app

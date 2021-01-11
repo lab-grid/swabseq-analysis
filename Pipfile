@@ -9,6 +9,7 @@ flask-cors = "*"
 flask-restx = "*"
 python-jose = "*"
 Werkzeug = "*"
+gunicorn = "*"
 
 [dev-packages]
 pylint = "*"

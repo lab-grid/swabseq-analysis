@@ -3,6 +3,7 @@ services:
   server:
     build: .
     image: labflow/swabseq-analysis-server:latest
+    command: "python -m flask run --host=0.0.0.0 --port=5000"
     environment:
       - FLASK_ENV=development
       - PORT=5000

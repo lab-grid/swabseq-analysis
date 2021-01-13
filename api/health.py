@@ -1,6 +1,6 @@
 from flask_restx import Resource, fields, Namespace
 
-from server import app, db
+from server import app
 
 
 api = Namespace('server-health', description="Service health checks.", path='/')

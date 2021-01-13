@@ -28,6 +28,13 @@ swabseq_output = api.model('SwabseqOutput', {
 })
 
 
+basespace_id_param = {
+    'description': 'String Basespace ID',
+    'in': 'path',
+    'type': 'string'
+}
+
+
 def b64encode_file(filepath):
     with open(filepath, "r") as input_file:
         return base64.b64encode(input_file.read()).encode()

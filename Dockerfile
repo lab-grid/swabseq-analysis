@@ -85,10 +85,10 @@ RUN pip3 install -r requirements.txt
 
 COPY ./ .
 RUN dos2unix ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 ENV PYTHONPATH="${RBASE}:${PYTHONPATH}"
 ENV FLASK_APP=/app/main.py
 ENV SERVER_VERSION=$SERVER_VERSION
 
 ENTRYPOINT [ "./entrypoint.sh" ]
-CMD python3 -m gunicorn.app.wsgiapp --bind 0.0.0.0:${PORT} --workers 4 main:app

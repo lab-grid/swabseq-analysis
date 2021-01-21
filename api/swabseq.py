@@ -1,6 +1,7 @@
 import base64
 import csv
 import tempfile
+import os
 import subprocess
 from flask import abort, request, send_file
 from flask_restx import Resource, fields, Namespace
@@ -73,7 +74,10 @@ class RunsResource(Resource):
             return
 
         # Run R script and zip results to generate temp file
-        with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-") as rundir:
+        with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
+            # rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
+            os.makedirs(os.path.join(rundir, "out"))
+
             subprocess.call([
                 "Rscript",
                 "--vanilla",

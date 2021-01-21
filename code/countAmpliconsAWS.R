@@ -111,7 +111,7 @@ results <- results %>%
   mutate(index = factor(index, levels = ind1),
          index2 = factor(index2, levels = ind2))
 
-write_csv(results, paste0(rundir, 'countTable.csv')) 
+write_csv(results, paste0(rundir, 'countTable.csv'))
 saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 
 ##################

@@ -305,8 +305,7 @@ if __name__ == '__main__':
     print('Reading in fastq files')
 
     ## Amplicons
-    fn = fastq_path + "/Undetermined_S0_R1_001.fastq"
-    with open(fn) as f:
+    with open(join(fastq_path, "Undetermined_S0_R1_001.fastq")) as f:
         seqs = f.read().splitlines()
     amps = seqs[1::4] # Select only the sequences from the FASTQ file
 
@@ -315,8 +314,7 @@ if __name__ == '__main__':
             amps[i] = amps[i][0:26]
 
     ## I1
-    fn = fastq_path + "/Undetermined_S0_I1_001.fastq"
-    with open(fn) as f:
+    with open(join(fastq_path, "Undetermined_S0_I1_001.fastq")) as f:
         seqs = f.read().splitlines() 
     i1 = seqs[1::4] # Select only the sequences from the FASTQ file
 
@@ -325,8 +323,7 @@ if __name__ == '__main__':
             i1[i] = i1[i][0:10]
 
     ## I2
-    fn = fastq_path + "/Undetermined_S0_I2_001.fastq"
-    with open(fn) as f:
+    with open(join(fastq_path, "Undetermined_S0_I2_001.fastq")) as f:
         seqs = f.read().splitlines() 
     i2 = seqs[1::4] # Select only the sequences from the FASTQ file
 
@@ -372,22 +369,22 @@ if __name__ == '__main__':
     check_for_nan = results['amps'].isnull()
     nans = list(check_for_nan)
     na_amps = pd.DataFrame(list(compress(amps, nans)), columns = ['amps'])
-    na_amps.groupby(['amps'], dropna=False).size().sort_values().tail().to_csv(args.rundir + "top_unaligned_amps.csv")
+    na_amps.groupby(['amps'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_amps.csv"))
 
     # I1
     check_for_nan = results['i1'].isnull()
     nans = list(check_for_nan)
     na_amps = pd.DataFrame(list(compress(i1, nans)), columns = ['i1'])
-    na_amps.groupby(['i1'], dropna=False).size().sort_values().tail().to_csv(args.rundir + "top_unaligned_i1.csv")
+    na_amps.groupby(['i1'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i1.csv"))
 
     # I2
     check_for_nan = results['i2'].isnull()
     nans = list(check_for_nan)
     na_amps = pd.DataFrame(list(compress(i2, nans)), columns = ['i2'])
-    na_amps.groupby(['i2'], dropna=False).size().sort_values().tail().to_csv(args.rundir + "top_unaligned_i2.csv")
+    na_amps.groupby(['i2'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i2.csv"))
 
     
     results = results.groupby(['i1','i2','amps'], dropna=False).size()
-    results.to_csv(args.rundir + "results.csv")
+    results.to_csv(join(args.rundir, "results.csv"))
 
     print("Finished")

@@ -83,12 +83,14 @@ COPY Pipfile.lock Pipfile.lock
 RUN pipenv lock --dev --requirements > requirements.txt
 RUN pip3 install -r requirements.txt
 
+COPY ./entrypoint.sh /entrypoint.sh
+RUN dos2unix /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 COPY ./ .
-RUN dos2unix ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
 
 ENV PYTHONPATH="${RBASE}:${PYTHONPATH}"
 ENV FLASK_APP=/app/main.py
 ENV SERVER_VERSION=$SERVER_VERSION
 
-ENTRYPOINT [ "./entrypoint.sh" ]
+ENTRYPOINT [ "/entrypoint.sh" ]

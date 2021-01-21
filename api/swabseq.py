@@ -38,7 +38,6 @@ basespace_id_param = {
 
 
 count_table_fields = {
-    'plateLabel': 'PlateBarcode',
     'plateIndex': 'Plate_384_Number',
     'plateCell': 'Sample_Well',
     'marker1': 'index',

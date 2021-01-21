@@ -51,7 +51,7 @@ def b64encode_file(filepath):
         return base64.b64encode(input_file.read()).encode()
 
 def read_csv_as_dict_list(filepath):
-    with open(f"{rundir}/countTable.csv") as csv_file:
+    with open(filepath, "r") as csv_file:
         csv_reader = csv.DictReader(csv_file)
         return [x for x in csv_reader]
 

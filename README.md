@@ -12,6 +12,11 @@ Original code has been edited in the following ways:
 
 ## Development
 
+To run the server locally:
+```
+docker-compose up --build
+```
+
 Before running first time, generate a default.cfg file:
 
 ```

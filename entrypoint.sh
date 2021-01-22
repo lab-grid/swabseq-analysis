@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -ex
 
 if [[ ! -z "${BASESPACE_CFG}" ]]; then
     echo "${BASESPACE_CFG}" > /root/.basespace/default.cfg

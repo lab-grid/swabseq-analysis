@@ -4,11 +4,13 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+celery = "*"
 flask = "*"
 flask-cors = "*"
 flask-restx = "*"
 pandas = "*"
 python-jose = "*"
+redis = "*"
 Werkzeug = "*"
 gunicorn = "*"
 

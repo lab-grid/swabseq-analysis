@@ -30,7 +30,7 @@ count_table_fields = {
 
 def b64encode_file(filepath):
     with open(filepath, "r") as input_file:
-        return base64.b64encode(input_file.read()).encode()
+        return base64.b64encode(input_file.read().encode('ascii')).decode('ascii')
 
 def read_csv_as_dict_list(filepath):
     with open(filepath, "r") as csv_file:

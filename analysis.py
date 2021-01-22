@@ -42,6 +42,7 @@ def rename_fields(original, fields):
         new_field: original[original_field]
         for new_field, original_field
         in fields.items()
+        if original_field in original
     }
 
 @celery.task()
@@ -79,8 +80,9 @@ def run_analysis(basespace_id):
                 },
             }
     except Exception as ex:
-        traceback.print_exc()
+        ex_str = traceback.format_exc()
+        print(ex_str)
         return {
             'status': 'failed',
-            'error': str(ex),
+            'error': ex_str,
         }

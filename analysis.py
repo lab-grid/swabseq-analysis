@@ -1,5 +1,6 @@
 import base64
 import csv
+import glob
 import tempfile
 import traceback
 import os
@@ -67,17 +68,21 @@ def run_analysis(basespace_id):
 
             count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv")
 
+            attachments = {
+                'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
+                'run_info.csv': b64encode_file(f"{rundir}/run_info.csv"),
+                f"{basespace_id}.pdf": b64encode_file(f"{rundir}/{basespace_id}.pdf"),
+                'countTable.csv': b64encode_file(f"{rundir}/countTable.csv"),
+                'SampleSheet.csv': b64encode_file(f"{rundir}/SampleSheet.csv"),
+            }
+            for pdf_attachment in glob.glob(f"{rundir}/*.pdf"):
+                attachments[os.path.basename(pdf_attachment)] = b64encode_file(pdf_attachment)
+
             return {
                 'status': 'ready',
                 'basespace_id': basespace_id,
                 'results': [rename_fields(row, count_table_fields) for row in count_table_raw],
-                'attachments': {
-                    'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
-                    'run_info.csv': b64encode_file(f"{rundir}/run_info.csv"),
-                    f"{basespace_id}.pdf": b64encode_file(f"{rundir}/{basespace_id}.pdf"),
-                    'countTable.csv': b64encode_file(f"{rundir}/countTable.csv"),
-                    'SampleSheet.csv': b64encode_file(f"{rundir}/SampleSheet.csv"),
-                },
+                'attachments': attachments,
             }
     except Exception as ex:
         ex_str = traceback.format_exc()

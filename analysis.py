@@ -54,7 +54,7 @@ def run_analysis(basespace_id):
             # rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
             os.makedirs(os.path.join(rundir, "out"))
 
-            subprocess.call([
+            subprocess.check_call([
                 "Rscript",
                 "--vanilla",
                 "code/countAmpliconsAWS.R",

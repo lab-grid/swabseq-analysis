@@ -3,11 +3,14 @@
 message("Loading Libraries")
 
 suppressMessages(library(argparser))
-p = arg_parser("utility to count amplicons for SwabSeq")
-p=add_argument(p,"--rundir",  default=".", help="path to run")
-p=add_argument(p,"--basespaceID",  default=NA, help="BaseSpace Run ID")
-p=add_argument(p,"--threads", default=1, help="number of threads for bcl2fastq & amatch")
-args=parse_args(p) 
+p <- arg_parser("utility to count amplicons for SwabSeq")
+p <- add_argument(p, "--rundir",  default = ".", help="path to run")
+p <- add_argument(p, "--basespaceID",  default = NA, help = "BaseSpace Run ID")
+p <- add_argument(p, "--threads", default = 1, help = "number of threads for bcl2fastq & amatch")
+p <- add_argument(p, "--debug", default = FALSE, type = "logical", help = "debug mode generates extra data and plots")
+p <- add_argument(p, "--season", default = "winter", help = "we have 4 fwd/rev primer pair modes, each 
+                  named after one of the 4 seasons. The original pairing is named winter and is the default.")
+args <- parse_args(p)
 
 #load required packages
 suppressMessages(library(tidyverse))
@@ -17,10 +20,10 @@ suppressMessages(library(Biostrings))
 suppressMessages(library(xml2))
 
 
-rundir=args$rundir
-basespaceID=args$basespaceID
-threads = args$threads
-
+rundir <- args$rundir
+basespaceID <- args$basespaceID
+threads <- args$threads
+debug <- args$debug
 
 
 # setwd(rundir)
@@ -50,7 +53,7 @@ if(!file.exists(fastqR1)) {
 rundir <- paste0(getwd(),"/")
 
 # Align
-system(paste("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_tables/"))
+system(paste0("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_tables/ --debug ", debug))
 
 
 ###################
@@ -58,7 +61,7 @@ system(paste("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_tables
 ###################
 
 # Munginging sample sheet-------------------------------------------------------------------
-ss=read.delim(paste0('../misc/SampleSheet.csv'), stringsAsFactors=F, skip=14, sep=',') %>% 
+ss <- read.delim(paste0('../misc/SampleSheet.csv'), stringsAsFactors=F, skip=14, sep=',') %>% 
   mutate(mergedIndex = paste0(index, index2))
 
 
@@ -116,9 +119,9 @@ classification <- results %>%
                                         ifelse(S2 + S2_spike >= 500 & RPP30 < 10,
                                                "Inconclusive: low RPP30",
                                                ifelse(s2_vs_spike > 0.1 & RPP30 >= 10,
-                                                      "COVID_pos",
+                                                      "Positive",
                                                       ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
-                                                             "COVID_neg",
+                                                             "Negative",
                                                              classification))))))
 
 write_csv(classification, "LIMS_results.csv")
@@ -174,14 +177,14 @@ run_info <- tibble(runID = xml_find_all(rp, '//RunID') %>% xml_text(),
 write_csv(run_info, 'run_info.csv')
 
 # Illumina stats
-sav=savR(rundir)
-tMet=tileMetrics(sav)
-phiX=mean(tMet$value[tMet$code=='300'])
-clusterPF=mean(tMet$value[tMet$code=='103']/tMet$value[tMet$code=='102'], na.rm=T)
-clusterDensity=mean(tMet$value[tMet$code=='100']/1000)
-clusterDensity_perLane=sapply(split(tMet, tMet$lane), function(x) mean(x$value[x$code=='100']/1000))    
-seq.metrics=data.frame("totReads"=format(sum(amp.match.summary),  big.mark=','),
-                       "totReadsPassedQC"=format(sum(amp.match.summary[!(names(amp.match.summary) %in% 'no_align')]), big.mark=','),
+sav <- savR(rundir)
+tMet <- tileMetrics(sav)
+phiX <- mean(tMet$value[tMet$code == '300'])
+clusterPF <- mean(tMet$value[tMet$code == '103'] / tMet$value[tMet$code == '102'], na.rm=T)
+clusterDensity <- mean(tMet$value[tMet$code == '100'] / 1000)
+clusterDensity_perLane <- sapply(split(tMet, tMet$lane), function(x) mean(x$value[x$code == '100'] / 1000))    
+seq.metrics <- data.frame("totReads" = format(sum(amp.match.summary),  big.mark = ','),
+                       "totReadsPassedQC" = format(sum(amp.match.summary[!(names(amp.match.summary) %in% 'no_align')]), big.mark = ','),
                        "phiX"=paste(round(phiX,2), "%"), "clusterPF"=paste(round(clusterPF*100,1), "%"),
                        "tot_phiX" = format(round((phiX / 100) * sum(amp.match.summary)), big.mark = ','),
                        "clustDensity"=paste(round(clusterDensity,1), 'K/mm^2'), 

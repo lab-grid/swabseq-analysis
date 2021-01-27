@@ -367,10 +367,11 @@ if __name__ == '__main__':
     print('Counting Amplicions')
 
     results = pd.DataFrame(results)
-    print(results.groupby(['amps'], dropna=False).size())
 
     if(debug):
 
+        print(results.groupby(['amps'], dropna=False).size())
+        
         # Top unalined seqs
         # Amps
         check_for_nan = results['amps'].isnull()

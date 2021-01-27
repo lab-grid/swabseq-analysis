@@ -102,15 +102,15 @@ classification <- results %>%
   mutate(s2_vs_spike = ((S2 + 1) / (S2_spike + 1)),
          classification = NA,
          classification = ifelse(S2 + S2_spike < 500 & RPP30 < 10,
-                                 "Inconclusive: low S2 & RPP30",
+                                 "failed: low S2 & RPP30",
                                  ifelse(S2 + S2_spike < 500 & RPP30 >= 10,
-                                        "Inconclusive: low S2",
+                                        "failed: low S2",
                                         ifelse(S2 + S2_spike >= 500 & RPP30 < 10,
-                                               "Inconclusive: low RPP30",
+                                               "failed: low RPP30",
                                                ifelse(s2_vs_spike > 0.1 & RPP30 >= 10,
-                                                      "Positive",
+                                                      "COVID_pos",
                                                       ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
-                                                             "Negative",
+                                                             "COVID_neg",
                                                              classification))))))
 
 write_csv(classification, "LIMS_results.csv")

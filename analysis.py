@@ -30,8 +30,8 @@ count_table_fields = {
 }
 
 def b64encode_file(filepath):
-    with open(filepath, "r") as input_file:
-        return base64.b64encode(input_file.read().encode('ascii')).decode('ascii')
+    with open(filepath, "rb") as input_file:
+        return base64.b64encode(input_file.read()).decode('utf-8')
 
 def read_csv_as_dict_list(filepath):
     with open(filepath, "r") as csv_file:
@@ -54,7 +54,7 @@ def run_analysis(basespace_id):
             # rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
             os.makedirs(os.path.join(rundir, "out"))
 
-            subprocess.call([
+            subprocess.check_call([
                 "Rscript",
                 "--vanilla",
                 "code/countAmpliconsAWS.R",
@@ -71,7 +71,6 @@ def run_analysis(basespace_id):
             attachments = {
                 'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
                 'run_info.csv': b64encode_file(f"{rundir}/run_info.csv"),
-                f"{basespace_id}.pdf": b64encode_file(f"{rundir}/{basespace_id}.pdf"),
                 'countTable.csv': b64encode_file(f"{rundir}/countTable.csv"),
                 'SampleSheet.csv': b64encode_file(f"{rundir}/SampleSheet.csv"),
             }

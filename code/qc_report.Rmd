@@ -11,6 +11,7 @@ output:
 params:
   experiment: NA
   run_info: NA
+  season: NA
   amp.match.summary: NA
   sum_matched_df: NA
   results: NA
@@ -37,8 +38,9 @@ library(RColorBrewer)
 library(GGally)
 library(scales)
 library(viridis)
-# library(kableExtra)
-# library(ggpubr)
+
+other_seasons <- c("winter", "spring", "summer", "fall")
+other_seasons <- other_seasons[which(!other_seasons %in% season)]
 
 ```
 
@@ -76,46 +78,25 @@ params$classification %>%
 ##################
 # Modify columns #
 ##################
-df <- params$results
+df <- params$results %>% 
+  filter(season == !!params$season)
 
 df$Col=as.factor(gsub('^.', '', df$Sample_Well))
 df$Row=factor(gsub('..$', '', df$Sample_Well), levels=rev(toupper(letters[1:8])))
 df$Sample=paste0(df$Plate_ID, '-' ,df$Sample_Well)
 df$Plate_ID=as.factor(df$Plate_ID)
-df$Plate_ID=factor(df$Plate_ID, levels(df$Plate_ID)[order(as.numeric(gsub('Plate', '', levels(df$Plate_ID))))])  
-# df$Plate_384=as.factor(df$Plate_384)
-# df$amplicon=factor(df$amplicon,sample_class level=c('S2', 'S2_spike', 'RPP30', 'RPP30_spike'))
+df$Plate_ID=factor(df$Plate_ID, levels(df$Plate_ID)[order(as.numeric(gsub('Plate', '', levels(df$Plate_ID))))])
 
-################################################
-# Filter samples that had < 2000 S2 + S2 spike #
-################################################
+###############
+# All results #
+###############
+df_all <- params$results
 
-remove <- c(
-  df %>%
-    filter(!is.na(Plate_ID),
-           !is.na(amplicon)) %>% 
-    # group_by_at(names(df)[!names(df) %in% c("Count", "amplicon")]) %>% 
-    group_by(mergedIndex) %>% 
-    summarise(S2_spike = sum(Count[grepl("spike",amplicon)]),
-            S2 = sum(Count[amplicon == "S2"]),
-            RPP30 = sum(Count[amplicon == "RPP30"])) %>% 
-  # pivot_wider(names_from = amplicon, values_from = Count) %>% 
-  dplyr::select(mergedIndex, RPP30, S2, S2_spike) %>% 
-  filter(RPP30 < 10) %>% 
-  pull(mergedIndex),
-  df %>%
-    filter(!is.na(Plate_ID),
-           !is.na(amplicon)) %>% 
-    # group_by_at(names(df)[!names(df) %in% c("Count", "amplicon")]) %>% 
-    group_by(mergedIndex) %>% 
-    summarise(S2_spike = sum(Count[grepl("spike",amplicon)]),
-            S2 = sum(Count[amplicon == "S2"]),
-            RPP30 = sum(Count[amplicon == "RPP30"])) %>% 
-  dplyr::select(mergedIndex, RPP30, S2, S2_spike) %>% 
-  filter(S2 + S2_spike < 500) %>% 
-  pull(mergedIndex)
-  ) %>% 
-  unique()
+df_all$Col=as.factor(gsub('^.', '', df_all$Sample_Well))
+df_all$Row=factor(gsub('..$', '', df_all$Sample_Well), levels=rev(toupper(letters[1:8])))
+df_all$Sample=paste0(df_all$Plate_ID, '-' ,df_all$Sample_Well)
+df_all$Plate_ID=as.factor(df_all$Plate_ID)
+df_all$Plate_ID=factor(df_all$Plate_ID, levels(df_all$Plate_ID)[order(as.numeric(gsub('Plate', '', levels(df_all$Plate_ID))))])
 ```
 
 ## Plate Map Plot
@@ -229,24 +210,85 @@ df %>%
         panel.border = element_rect(colour = "black", fill=NA, size=0.5))
 ```
 
-## Read Counts per Well
+\newpage
+
+## Sample Caryover
+
+### `r str_to_title(other_seasons[1])`
 
 ```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
-df %>%
-  filter(!is.na(Plate_ID)) %>% 
-  filter(!is.na(amplicon)) %>% 
-  group_by(Plate_ID, Col, Row) %>% 
-  summarise(read_counts = sum(Count)) %>% 
-  ggplot(aes(x=Col, y=Row, fill=log10(read_counts))) + 
+myPalette <- colorRampPalette(brewer.pal(9, "Greys"))
+
+df_all %>%
+  filter(!is.na(pm_384),
+         season == other_seasons[1]) %>%
+  mutate(Count = log10(Count)) %>% 
+  ggplot(aes(x=col_384, y=row_384, fill = Count)) +
   geom_tile() +
   coord_equal() +
-  facet_wrap(~Plate_ID, ncol = 4) +
-  scale_fill_viridis_c(option = 'plasma') +
+  facet_grid(amplicon~pm_384) +
+  scale_x_continuous(breaks = 1:24) +
+  scale_y_continuous(breaks = 1:16, trans = "reverse") +
+  scale_fill_viridis_c(option = 'plasma', na.value = "white") +
+  xlab("384 Plate Column") +
+  ylab("384 Plate Row") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         panel.background = element_blank(), axis.line = element_line(colour = "black"),
         panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
 ```
 
+\newpage
+
+### `r str_to_title(other_seasons[2])`
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+myPalette <- colorRampPalette(brewer.pal(9, "Greys"))
+
+df_all %>%
+  filter(!is.na(pm_384),
+         season == other_seasons[2]) %>%
+  mutate(Count = log10(Count)) %>% 
+  ggplot(aes(x=col_384, y=row_384, fill = Count)) +
+  geom_tile() +
+  coord_equal() +
+  facet_grid(amplicon~pm_384) +
+  scale_x_continuous(breaks = 1:24) +
+  scale_y_continuous(breaks = 1:16, trans = "reverse") +
+  scale_fill_viridis_c(option = 'plasma', na.value = "white") +
+  xlab("384 Plate Column") +
+  ylab("384 Plate Row") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+```
+
+\newpage
+
+### `r str_to_title(other_seasons[3])`
+
+```{r echo=FALSE, fig.height=10, fig.width=12, message=FALSE, warning=FALSE}
+myPalette <- colorRampPalette(brewer.pal(9, "Greys"))
+
+df_all %>%
+  filter(!is.na(pm_384),
+         season == other_seasons[3]) %>%
+  mutate(Count = log10(Count)) %>% 
+  ggplot(aes(x=col_384, y=row_384, fill = Count)) +
+  geom_tile() +
+  coord_equal() +
+  facet_grid(amplicon~pm_384) +
+  scale_x_continuous(breaks = 1:24) +
+  scale_y_continuous(breaks = 1:16, trans = "reverse") +
+  scale_fill_viridis_c(option = 'plasma', na.value = "white") +
+  xlab("384 Plate Column") +
+  ylab("384 Plate Row") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5))
+
+```
 
 \newpage
 
@@ -272,7 +314,7 @@ df %>%
 ## Index Swapping
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-df %>% 
+df_all %>% 
   filter(!is.na(index),
          !is.na(index2),
          !is.na(amplicon)) %>% 
@@ -301,17 +343,17 @@ df %>%
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #scatter plots of s2 reads vs swaps where swaps are the marginal counts (or rates) of swapped reads for each of the indices shared for each sample
-mat_df <- df %>% 
+mat_df <- df_all %>% 
   filter(amplicon == "S2") %>% 
   dplyr::select(index, index2, Count)
 
 
 
-missing_ind1 <- tibble(index = levels(df$index)[which(!levels(mat_df$index) %in% unique(mat_df$index))],
+missing_ind1 <- tibble(index = levels(df_all$index)[which(!levels(mat_df$index) %in% unique(mat_df$index))],
                        index2 = NA,
                        Count = 0)
 missing_ind2 <- tibble(index = NA,
-                       index2 = levels(df$index2)[which(!levels(mat_df$index2) %in% unique(mat_df$index2))],
+                       index2 = levels(df_all$index2)[which(!levels(mat_df$index2) %in% unique(mat_df$index2))],
                        Count = 0)
 
 mat_df <- rbind(mat_df, missing_ind1, missing_ind2) %>% 
@@ -322,8 +364,8 @@ rownames(mat_df) <- row_names
 
 mat_df[which(is.na(mat_df))] <- 0
 
-col_order <- levels(df$index)[levels(df$index) %in% colnames(mat_df)]
-row_order <- levels(df$index2)[levels(df$index2) %in% rownames(mat_df)]
+col_order <- levels(df_all$index)[levels(df_all$index) %in% colnames(mat_df)]
+row_order <- levels(df_all$index2)[levels(df_all$index2) %in% rownames(mat_df)]
 
 mat_df <- mat_df[row_order,col_order]
 
@@ -420,3 +462,7 @@ classification %>%
 ```
 
 \normalsize
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sessionInfo()
+```

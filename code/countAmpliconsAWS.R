@@ -24,6 +24,7 @@ rundir <- args$rundir
 basespaceID <- args$basespaceID
 threads <- args$threads
 debug <- args$debug
+season <- args$season
 
 
 # setwd(rundir)
@@ -59,39 +60,26 @@ system(paste0("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_table
 ###################
 # Reformat output #
 ###################
-
-# Munginging sample sheet-------------------------------------------------------------------
-ss <- read.delim(paste0('../misc/SampleSheet.csv'), stringsAsFactors=F, skip=14, sep=',') %>% 
-  mutate(mergedIndex = paste0(index, index2))
-
+ss <- read_csv("../misc/SampleSheet_v2.csv")
 
 results <- read_csv("results.csv") %>% 
   dplyr::rename(amplicon = amps,
                 Count = `0`,
                 index = i1,
                 index2 = i2) %>% 
-  # left_join(bc_map, by = "sequence") %>% 
   mutate(mergedIndex = paste0(index, index2)) %>% 
   left_join(ss, by = c("mergedIndex","index","index2"))
 
 
-# Check direction of index 1 before merging w/ 384 plate map
-ind1 <- read_tsv("../hash_tables/ind1.txt", col_names = FALSE) %>% pull(X1)
-ind2 <- read_tsv("../hash_tables/ind2.txt", col_names = FALSE) %>% pull(X1)
-pm384 <- read_csv("../misc/384_plate_map.csv")
-
-
-results <- results %>%
-  left_join(pm384) %>%
-  separate(pm, into = c("pm_384","row_384","col_384")) %>%
-  mutate(row_384 = as.numeric(row_384),
-         col_384 = as.numeric(col_384))
-
+# Add levels to indices for index swapping plots
+ind1 <- ss %>% filter(season == !!season) %>% pull(index)
+ind2 <- ss %>% filter(season == !!season) %>% pull(index2)
 
 results <- results %>% 
   mutate(index = factor(index, levels = ind1),
          index2 = factor(index2, levels = ind2))
 
+# Save results
 write_csv(results, paste0(rundir, 'countTable.csv'))
 saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 
@@ -100,7 +88,8 @@ saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 ##################
 
 classification <- results %>%
-  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(Plate_ID),
+         season == !!season) %>% 
   #right_join(ss) %>% 
   group_by_at(names(.)[!names(.) %in% c("Count", "amplicon")]) %>% 
   summarise(S2_spike = sum(Count[grepl("S2_spike_0",amplicon)], na.rm = TRUE),
@@ -139,7 +128,8 @@ names(amp.match.summary) <- amp.match.summary.df$amplicon
 
 
 sum_matched <- results %>% 
-  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(Plate_ID),
+         season == !!season) %>% 
   group_by(amplicon) %>% 
   summarise(num_matched = sum(Count)) %>% 
   mutate(amplicon = ifelse(is.na(amplicon),
@@ -204,6 +194,7 @@ cycl_qual_plot <- rqcCycleQualityPlot(qcRes)
 params <- list(
   experiment = strsplit(rundir,"/") %>% unlist() %>% tail(1),
   run_info = run_info,
+  season = season,
   amp.match.summary = amp.match.summary,
   sum_matched_df = sum_matched_df,
   results = results,

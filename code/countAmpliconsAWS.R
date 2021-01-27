@@ -3,11 +3,14 @@
 message("Loading Libraries")
 
 suppressMessages(library(argparser))
-p = arg_parser("utility to count amplicons for SwabSeq")
-p=add_argument(p,"--rundir",  default=".", help="path to run")
-p=add_argument(p,"--basespaceID",  default=NA, help="BaseSpace Run ID")
-p=add_argument(p,"--threads", default=1, help="number of threads for bcl2fastq & amatch")
-args=parse_args(p) 
+p <- arg_parser("utility to count amplicons for SwabSeq")
+p <- add_argument(p, "--rundir",  default = ".", help="path to run")
+p <- add_argument(p, "--basespaceID",  default = NA, help = "BaseSpace Run ID")
+p <- add_argument(p, "--threads", default = 1, help = "number of threads for bcl2fastq & amatch")
+p <- add_argument(p, "--debug", default = FALSE, type = "logical", help = "debug mode generates extra data and plots")
+p <- add_argument(p, "--season", default = "winter", help = "we have 4 fwd/rev primer pair modes, each 
+                  named after one of the 4 seasons. The original pairing is named winter and is the default.")
+args <- parse_args(p)
 
 #load required packages
 suppressMessages(library(tidyverse))
@@ -17,10 +20,11 @@ suppressMessages(library(Biostrings))
 suppressMessages(library(xml2))
 
 
-rundir=args$rundir
-basespaceID=args$basespaceID
-threads = args$threads
-
+rundir <- args$rundir
+basespaceID <- args$basespaceID
+threads <- args$threads
+debug <- args$debug
+season <- args$season
 
 
 # setwd(rundir)
@@ -50,45 +54,32 @@ if(!file.exists(fastqR1)) {
 rundir <- paste0(getwd(),"/")
 
 # Align
-system(paste("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_tables/"))
+system(paste0("python3 ../code/dict_align.py --rundir ./ --dictdir ../hash_tables/ --debug ", debug))
 
 
 ###################
 # Reformat output #
 ###################
-
-# Munginging sample sheet-------------------------------------------------------------------
-ss=read.delim(paste0('../misc/SampleSheet.csv'), stringsAsFactors=F, skip=14, sep=',') %>% 
-  mutate(mergedIndex = paste0(index, index2))
-
+ss <- read_csv("../misc/SampleSheet_v2.csv")
 
 results <- read_csv("results.csv") %>% 
   dplyr::rename(amplicon = amps,
                 Count = `0`,
                 index = i1,
                 index2 = i2) %>% 
-  # left_join(bc_map, by = "sequence") %>% 
   mutate(mergedIndex = paste0(index, index2)) %>% 
   left_join(ss, by = c("mergedIndex","index","index2"))
 
 
-# Check direction of index 1 before merging w/ 384 plate map
-ind1 <- read_tsv("../hash_tables/ind1.txt", col_names = FALSE) %>% pull(X1)
-ind2 <- read_tsv("../hash_tables/ind2.txt", col_names = FALSE) %>% pull(X1)
-pm384 <- read_csv("../misc/384_plate_map.csv")
-
-
-results <- results %>%
-  left_join(pm384) %>%
-  separate(pm, into = c("pm_384","row_384","col_384")) %>%
-  mutate(row_384 = as.numeric(row_384),
-         col_384 = as.numeric(col_384))
-
+# Add levels to indices for index swapping plots
+ind1 <- ss %>% filter(season == !!season) %>% pull(index)
+ind2 <- ss %>% filter(season == !!season) %>% pull(index2)
 
 results <- results %>% 
   mutate(index = factor(index, levels = ind1),
          index2 = factor(index2, levels = ind2))
 
+# Save results
 write_csv(results, paste0(rundir, 'countTable.csv'))
 saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 
@@ -97,7 +88,8 @@ saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 ##################
 
 classification <- results %>%
-  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(Plate_ID),
+         season == !!season) %>% 
   #right_join(ss) %>% 
   group_by_at(names(.)[!names(.) %in% c("Count", "amplicon")]) %>% 
   summarise(S2_spike = sum(Count[grepl("S2_spike_0",amplicon)], na.rm = TRUE),
@@ -110,15 +102,15 @@ classification <- results %>%
   mutate(s2_vs_spike = ((S2 + 1) / (S2_spike + 1)),
          classification = NA,
          classification = ifelse(S2 + S2_spike < 500 & RPP30 < 10,
-                                 "failed: low S2 & RPP30",
+                                 "Inconclusive: low S2 & RPP30",
                                  ifelse(S2 + S2_spike < 500 & RPP30 >= 10,
-                                        "failed: low S2",
+                                        "Inconclusive: low S2",
                                         ifelse(S2 + S2_spike >= 500 & RPP30 < 10,
-                                               "failed: low RPP30",
+                                               "Inconclusive: low RPP30",
                                                ifelse(s2_vs_spike > 0.1 & RPP30 >= 10,
-                                                      "COVID_pos",
+                                                      "Positive",
                                                       ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
-                                                             "COVID_neg",
+                                                             "Negative",
                                                              classification))))))
 
 write_csv(classification, "LIMS_results.csv")
@@ -136,7 +128,8 @@ names(amp.match.summary) <- amp.match.summary.df$amplicon
 
 
 sum_matched <- results %>% 
-  filter(!is.na(Plate_ID)) %>% 
+  filter(!is.na(Plate_ID),
+         season == !!season) %>% 
   group_by(amplicon) %>% 
   summarise(num_matched = sum(Count)) %>% 
   mutate(amplicon = ifelse(is.na(amplicon),
@@ -174,14 +167,14 @@ run_info <- tibble(runID = xml_find_all(rp, '//RunID') %>% xml_text(),
 write_csv(run_info, 'run_info.csv')
 
 # Illumina stats
-sav=savR(rundir)
-tMet=tileMetrics(sav)
-phiX=mean(tMet$value[tMet$code=='300'])
-clusterPF=mean(tMet$value[tMet$code=='103']/tMet$value[tMet$code=='102'], na.rm=T)
-clusterDensity=mean(tMet$value[tMet$code=='100']/1000)
-clusterDensity_perLane=sapply(split(tMet, tMet$lane), function(x) mean(x$value[x$code=='100']/1000))    
-seq.metrics=data.frame("totReads"=format(sum(amp.match.summary),  big.mark=','),
-                       "totReadsPassedQC"=format(sum(amp.match.summary[!(names(amp.match.summary) %in% 'no_align')]), big.mark=','),
+sav <- savR(rundir)
+tMet <- tileMetrics(sav)
+phiX <- mean(tMet$value[tMet$code == '300'])
+clusterPF <- mean(tMet$value[tMet$code == '103'] / tMet$value[tMet$code == '102'], na.rm=T)
+clusterDensity <- mean(tMet$value[tMet$code == '100'] / 1000)
+clusterDensity_perLane <- sapply(split(tMet, tMet$lane), function(x) mean(x$value[x$code == '100'] / 1000))    
+seq.metrics <- data.frame("totReads" = format(sum(amp.match.summary),  big.mark = ','),
+                       "totReadsPassedQC" = format(sum(amp.match.summary[!(names(amp.match.summary) %in% 'no_align')]), big.mark = ','),
                        "phiX"=paste(round(phiX,2), "%"), "clusterPF"=paste(round(clusterPF*100,1), "%"),
                        "tot_phiX" = format(round((phiX / 100) * sum(amp.match.summary)), big.mark = ','),
                        "clustDensity"=paste(round(clusterDensity,1), 'K/mm^2'), 
@@ -201,6 +194,7 @@ cycl_qual_plot <- rqcCycleQualityPlot(qcRes)
 params <- list(
   experiment = strsplit(rundir,"/") %>% unlist() %>% tail(1),
   run_info = run_info,
+  season = season,
   amp.match.summary = amp.match.summary,
   sum_matched_df = sum_matched_df,
   results = results,

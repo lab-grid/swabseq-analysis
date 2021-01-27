@@ -232,6 +232,10 @@ if __name__ == '__main__':
                         dest='readmode',
                         default='rev',
                         help='direction of i5 reads')
+    parser.add_argument('--debug',
+                        dest='debug',
+                        default='FALSE',
+                        help='debug mode, extra output')
     args = parser.parse_args()
 
 
@@ -239,6 +243,7 @@ if __name__ == '__main__':
     fastq_path = args.rundir + 'out/'
     files = [f for f in listdir(fastq_path) if isfile(join(fastq_path, f))]
     files = list(filter(lambda x:'.fastq.gz' in x, files))
+    debug = args.debug == 'TRUE'
 
     # Unzip FASTQ Files
 #    for gz in files:
@@ -362,26 +367,29 @@ if __name__ == '__main__':
     print('Counting Amplicions')
 
     results = pd.DataFrame(results)
-    print(results.groupby(['amps'], dropna=False).size())
 
-    # Top unalined seqs
-    # Amps
-    check_for_nan = results['amps'].isnull()
-    nans = list(check_for_nan)
-    na_amps = pd.DataFrame(list(compress(amps, nans)), columns = ['amps'])
-    na_amps.groupby(['amps'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_amps.csv"))
+    if(debug):
 
-    # I1
-    check_for_nan = results['i1'].isnull()
-    nans = list(check_for_nan)
-    na_amps = pd.DataFrame(list(compress(i1, nans)), columns = ['i1'])
-    na_amps.groupby(['i1'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i1.csv"))
+        print(results.groupby(['amps'], dropna=False).size())
+        
+        # Top unalined seqs
+        # Amps
+        check_for_nan = results['amps'].isnull()
+        nans = list(check_for_nan)
+        na_amps = pd.DataFrame(list(compress(amps, nans)), columns = ['amps'])
+        na_amps.groupby(['amps'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_amps.csv"))
 
-    # I2
-    check_for_nan = results['i2'].isnull()
-    nans = list(check_for_nan)
-    na_amps = pd.DataFrame(list(compress(i2, nans)), columns = ['i2'])
-    na_amps.groupby(['i2'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i2.csv"))
+        # I1
+        check_for_nan = results['i1'].isnull()
+        nans = list(check_for_nan)
+        na_amps = pd.DataFrame(list(compress(i1, nans)), columns = ['i1'])
+        na_amps.groupby(['i1'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i1.csv"))
+
+        # I2
+        check_for_nan = results['i2'].isnull()
+        nans = list(check_for_nan)
+        na_amps = pd.DataFrame(list(compress(i2, nans)), columns = ['i2'])
+        na_amps.groupby(['i2'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i2.csv"))
 
     
     results = results.groupby(['i1','i2','amps'], dropna=False).size()

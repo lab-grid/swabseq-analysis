@@ -1,0 +1,17 @@
+﻿Plate#,Group Name,Plate_name,fwd_plate,rev_plate
+1,Winter,Winter_1,1,1
+2,Winter,Winter_2,2,2
+3,Winter,Winter_3,3,3
+4,Winter,Winter_4,4,4
+5,Spring,Spring_1,1,2
+6,Spring,Spring_2,2,3
+7,Spring,Spring_3,3,4
+8,Spring,Spring_4,4,1
+9,Summer,Summer_1,1,3
+10,Summer,Summer_2,2,4
+11,Summer,Summer_3,3,1
+12,Summer,Summer_4,4,2
+13,Fall,Fall_1,1,4
+14,Fall,Fall_2,2,1
+15,Fall,Fall_3,3,2
+16,Fall,Fall_4,4,3

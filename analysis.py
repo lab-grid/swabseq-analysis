@@ -53,7 +53,7 @@ def run_analysis(basespace_id, season=None):
         with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
             # rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
             os.makedirs(os.path.join(rundir, "out"))
-            
+
             script_args = [
                 "Rscript",
                 "--vanilla",

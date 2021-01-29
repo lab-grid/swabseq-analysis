@@ -38,18 +38,25 @@ task_id_param = {
     'in': 'path',
     'type': 'string'
 }
+season_param = {
+    'description': 'Season identifier',
+    'in': 'query',
+    'type': 'string'
+}
 
 
 @api.route('/swabseq/<string:basespace_id>')
 class AnalysisTasksResource(Resource):
-    @api.doc(security='token', model=swabseq_output, params={'basespace_id': basespace_id_param})
+    @api.doc(security='token', model=swabseq_output, params={'basespace_id': basespace_id_param, 'season': season_param})
     @requires_auth
     def post(self, basespace_id):
         if not basespace_id:
             abort(400, description='Error. Not a valid Basespace run name string')
             return
+        
+        season = request.args.get('season')
 
-        task = run_analysis.delay(basespace_id)
+        task = run_analysis.delay(basespace_id, season)
 
         return {
             "id": task.task_id,

@@ -47,14 +47,14 @@ def rename_fields(original, fields):
     }
 
 @celery.task()
-def run_analysis(basespace_id):
+def run_analysis(basespace_id, season=None):
     try:
         # Run R script and zip results to generate temp file
         with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
             # rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
             os.makedirs(os.path.join(rundir, "out"))
-
-            subprocess.check_call([
+            
+            script_args = [
                 "Rscript",
                 "--vanilla",
                 "code/countAmpliconsAWS.R",
@@ -64,7 +64,13 @@ def run_analysis(basespace_id):
                 basespace_id,
                 "--threads",
                 f"{os.environ.get('RSCRIPT_THREADS', '8')}"
-            ])
+            ]
+            
+            if season is not None:
+                script_args.append("--season")
+                script_args.append(season)
+
+            subprocess.check_call(script_args)
 
             count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv")
 

@@ -46,43 +46,64 @@ def rename_fields(original, fields):
         if original_field in original
     }
 
+def do_analysis(basespace_id, threads=8, season=None, debug=False):
+    os.makedirs(os.path.join(rundir, "out"))
+
+    script_args = [
+        "Rscript",
+        "--vanilla",
+        "code/countAmpliconsAWS.R",
+        "--rundir",
+        f"{rundir}/",
+        "--basespaceID",
+        basespace_id,
+    ]
+    
+    if threads is not None:
+        script_args.append("--threads")
+        script_args.append(str(threads))
+
+    if season is not None:
+        script_args.append("--season")
+        script_args.append(season)
+        
+    if debug:
+        script_args.append("--debug")
+
+    subprocess.check_call(script_args)
+
+    count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv")
+
+    attachments = {
+        'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
+        'run_info.csv': b64encode_file(f"{rundir}/run_info.csv"),
+        'countTable.csv': b64encode_file(f"{rundir}/countTable.csv"),
+        'SampleSheet.csv': b64encode_file(f"{rundir}/SampleSheet.csv"),
+    }
+    for pdf_attachment in glob.glob(f"{rundir}/*.pdf"):
+        attachments[os.path.basename(pdf_attachment)] = b64encode_file(pdf_attachment)
+
+    return {
+        'status': 'ready',
+        'basespace_id': basespace_id,
+        'results': [rename_fields(row, count_table_fields) for row in count_table_raw],
+        'attachments': attachments,
+    }
+
 @celery.task()
-def run_analysis(basespace_id):
+def run_analysis(basespace_id, season=None):
     try:
+        threads = int(os.environ.get('RSCRIPT_THREADS', '8'))
+        debug = os.environ.get('RSCRIPT_DEBUG', 'False') == 'True'
+        
         # Run R script and zip results to generate temp file
-        with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
-            # rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
-            os.makedirs(os.path.join(rundir, "out"))
-
-            subprocess.check_call([
-                "Rscript",
-                "--vanilla",
-                "code/countAmpliconsAWS.R",
-                "--rundir",
-                f"{rundir}/",
-                "--basespaceID",
-                basespace_id,
-                "--threads",
-                f"{os.environ.get('RSCRIPT_THREADS', '8')}"
-            ])
-
-            count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv")
-
-            attachments = {
-                'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
-                'run_info.csv': b64encode_file(f"{rundir}/run_info.csv"),
-                'countTable.csv': b64encode_file(f"{rundir}/countTable.csv"),
-                'SampleSheet.csv': b64encode_file(f"{rundir}/SampleSheet.csv"),
-            }
-            for pdf_attachment in glob.glob(f"{rundir}/*.pdf"):
-                attachments[os.path.basename(pdf_attachment)] = b64encode_file(pdf_attachment)
-
-            return {
-                'status': 'ready',
-                'basespace_id': basespace_id,
-                'results': [rename_fields(row, count_table_fields) for row in count_table_raw],
-                'attachments': attachments,
-            }
+        if debug:
+            # If we're in debug mode, don't delete the work directory
+            rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
+            do_analysis(basespace_id, threads, season, debug)
+        else:
+            with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
+                do_analysis(basespace_id, threads, season, debug)
     except Exception as ex:
         ex_str = traceback.format_exc()
         print(ex_str)

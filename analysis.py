@@ -46,7 +46,7 @@ def rename_fields(original, fields):
         if original_field in original
     }
 
-def do_analysis(basespace_id, threads=8, season=None, debug=False):
+def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
     os.makedirs(os.path.join(rundir, "out"))
 
     script_args = [
@@ -100,10 +100,10 @@ def run_analysis(basespace_id, season=None):
         if debug:
             # If we're in debug mode, don't delete the work directory
             rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
-            do_analysis(basespace_id, threads, season, debug)
+            do_analysis(rundir, basespace_id, threads, season, debug)
         else:
             with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
-                do_analysis(basespace_id, threads, season, debug)
+                do_analysis(rundir, basespace_id, threads, season, debug)
     except Exception as ex:
         ex_str = traceback.format_exc()
         print(ex_str)

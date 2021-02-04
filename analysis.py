@@ -29,14 +29,22 @@ count_table_fields = {
     'classification': 'classification',
 }
 
+def result_is_valid(result):
+    return result['plateIndex'] != 'NA' \
+        and result['plateCell'] != 'NA' \
+        and result['marker1'] != 'NA' \
+        and result['marker2'] != 'NA'
+
 def b64encode_file(filepath):
     with open(filepath, "rb") as input_file:
         return base64.b64encode(input_file.read()).decode('utf-8')
 
-def read_csv_as_dict_list(filepath):
+def read_csv_as_dict_list(filepath, filter_fn=None):
     with open(filepath, "r") as csv_file:
         csv_reader = csv.DictReader(csv_file)
-        return [x for x in csv_reader]
+        if filter_fn is None:
+            filter_fn = lambda x: True
+        return [x for x in csv_reader if filter_fn(x)]
 
 def rename_fields(original, fields):
     return {
@@ -72,7 +80,7 @@ def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
 
     subprocess.check_call(script_args)
 
-    count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv")
+    count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv", result_is_valid)
 
     attachments = {
         'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),

@@ -30,10 +30,10 @@ count_table_fields = {
 }
 
 def result_is_valid(result):
-    return result['plateIndex'] != 'NA' \
-        and result['plateCell'] != 'NA' \
-        and result['marker1'] != 'NA' \
-        and result['marker2'] != 'NA'
+    return result.get('plateIndex', 'NA') != 'NA' \
+        and result.get('plateCell', 'NA') != 'NA' \
+        and result.get('marker1', 'NA') != 'NA' \
+        and result.get('marker2', 'NA') != 'NA'
 
 def b64encode_file(filepath):
     with open(filepath, "rb") as input_file:

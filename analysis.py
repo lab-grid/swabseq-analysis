@@ -80,7 +80,7 @@ def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
 
     subprocess.check_call(script_args)
 
-    count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv", result_is_valid)
+    count_table_raw = read_csv_as_dict_list(f"{rundir}/countTable.csv")
 
     attachments = {
         'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
@@ -94,7 +94,7 @@ def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
     return {
         'status': 'ready',
         'basespace_id': basespace_id,
-        'results': [rename_fields(row, count_table_fields) for row in count_table_raw],
+        'results': [rename_fields(row, count_table_fields) for row in count_table_raw if result_is_valid(row)],
         'attachments': attachments,
     }
 

@@ -90,11 +90,17 @@ def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
     }
     for pdf_attachment in glob.glob(f"{rundir}/*.pdf"):
         attachments[os.path.basename(pdf_attachment)] = b64encode_file(pdf_attachment)
+    
+    results = []
+    for row in count_table_raw:
+        result = rename_fields(row, count_table_fields)
+        if result_is_valid(result):
+            results.append(result)
 
     return {
         'status': 'ready',
         'basespace_id': basespace_id,
-        'results': [rename_fields(row, count_table_fields) for row in count_table_raw if result_is_valid(row)],
+        'results': results,
         'attachments': attachments,
     }
 

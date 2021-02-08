@@ -68,7 +68,7 @@ results <- read_csv("results.csv") %>%
                 index = i1,
                 index2 = i2) %>% 
   mutate(mergedIndex = paste0(index, index2)) %>% 
-  left_join(ss, by = c("mergedIndex","index","index2"))
+  full_join(ss, by = c("mergedIndex","index","index2"))
 
 
 # Add levels to indices for index swapping plots

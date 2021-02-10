@@ -154,43 +154,42 @@ df %>%
 Classifies samples as COVID positive/negative, or failure type. Table at end of document.
 
 ```{r echo=FALSE, fig.height=10, fig.width=12}
+cat_cols <- c("COVID_pos" = "#E69F00", 
+              "COVID_neg" = "#0072B2", 
+              "failed: low RPP30" = "#009E73", 
+              "failed: low S2" = "#000000", 
+              "failed: low S2 & RPP30" = "#999999")
+
 classification <- params$classification %>%
-  dplyr::select(index, index2, pm_384, row_384, col_384, Plate_ID, Sample_Well, S2_spike, S2, RPP30, s2_vs_spike, classification) %>% 
-  filter(!is.na(Plate_ID)) %>% 
+  # dplyr::select(index, index2, pm_384, row_384, col_384, Plate_ID, Sample_Well, S2_spike, S2, RPP30, s2_vs_spike, classification) %>% 
+  filter(season == !!params$season) %>% 
   mutate(Col = as.factor(gsub('^.', '', Sample_Well)),
          Row = factor(gsub('..$', '', Sample_Well), levels=rev(toupper(letters[1:8]))),
          Plate_ID = factor(Plate_ID, levels = unique(Plate_ID)[order(as.numeric(gsub('Plate', '', unique(Plate_ID))))]))
 
 classification %>% 
   ggplot(aes(x=Col, y=Row, fill= classification)) + 
-  # geom_raster() +
   geom_tile() +
   coord_equal() +
+  # geom_point(data = filter(classification, Sample_Well %in% c("A01","B01")),
+  #            aes(color = RPP30 < 10,
+  #                shape = RPP30 < 10),
+  #            stroke = 1,
+  #            show.legend = FALSE) +
+  geom_point(aes(color = ctrl_wells, shape = ctrl_wells), 
+             stroke = 1,
+             show.legend = FALSE) +
+  scale_shape_manual(values = c(4, 3)) +
+  scale_color_manual(values = c("red","green")) +
+  scale_fill_manual(values = cat_cols) +
   facet_wrap(~Plate_ID, ncol = 4) +
-  theme(legend.position = "top")
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour = "black", fill=NA, size=0.5),
+        legend.position = "top")
 ```
 
 \newpage
-
-<!-- ## Inconclusive Samples (Re-test) -->
-<!-- Table at end of document -->
-
-<!-- ```{r echo=FALSE, fig.height=10, fig.width=12} -->
-<!-- params$classification %>% -->
-<!--   filter(!is.na(Plate_ID)) %>%  -->
-<!--   mutate(Col = as.factor(gsub('^.', '', Sample_Well)), -->
-<!--          Row = factor(gsub('..$', '', Sample_Well), levels=rev(toupper(letters[1:8])))) %>%  -->
-<!--   ggplot(aes(x=Col, y=Row, fill= classification == "inconclusive")) +  -->
-<!--   # geom_raster() + -->
-<!--   geom_tile() + -->
-<!--   coord_equal() + -->
-<!--   facet_wrap(~Plate_ID, ncol = 4) + -->
-<!--   scale_fill_manual(name = "Inconclusive Result:", -->
-<!--                     values = c("#FFFFFF", "#000000")) + -->
-<!--   theme(legend.position = "top") -->
-<!-- ``` -->
-
-<!-- \newpage -->
 
 ## Read Counts per Well
 
@@ -339,12 +338,15 @@ df_all %>%
 
 \newpage
 
-## Swap events for S2
+## Swap events for total counts
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 #scatter plots of s2 reads vs swaps where swaps are the marginal counts (or rates) of swapped reads for each of the indices shared for each sample
 mat_df <- df_all %>% 
-  filter(amplicon == "S2") %>% 
+  group_by(index, index2) %>%
+  # filter(amplicon == "RPP30") %>%
+  summarise(Count = sum(Count, na.rm = TRUE)) %>%
+  ungroup() %>% 
   dplyr::select(index, index2, Count)
 
 
@@ -376,7 +378,7 @@ diag(mat_df) <- 0
 ind1_mismatch <- apply(mat_df, 2, function(x) sum(x))
 ind2_mismatch <- apply(mat_df, 1, function(x) sum(x))
 
-rbind(
+swap_events <- rbind(
   tibble(
     UDIs = UDIs,
     index_mismatch = ind1_mismatch,
@@ -387,13 +389,42 @@ rbind(
     index_mismatch = ind2_mismatch,
     index = "index2"
   )
-) %>% 
+) 
+
+swap_events %>% 
   ggplot(aes(x = UDIs, y = index_mismatch)) +
   geom_point() +
-  scale_x_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7)) +
-  scale_y_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7)) +
+  scale_x_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7, 1E8)) +
+  scale_y_continuous(trans = pseudo_log_trans(base = 10), breaks = c(0,10,100,1000,1E4,1E5, 1E6, 1E7, 1E8)) +
   # coord_fixed(ratio = 1, xlim = NULL, ylim = NULL, expand = TRUE, clip = "on") +
   facet_wrap(~index, ncol = 1) +
+  theme_minimal()
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+swap_events %>% 
+  mutate(udis_vs_mismatch = UDIs / index_mismatch) %>% 
+  ggplot(aes(x = udis_vs_mismatch)) +
+  geom_histogram(bins = 100) +
+  scale_x_log10() +
+  facet_wrap(.~index, ncol = 1) +
+  xlab("UDIs / Swap Counts") +
+  theme_minimal()
+```
+
+
+## RPP30 / S2 counts
+Red line = log2(0.5)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+params$classification %>% 
+  mutate(rpp30_vs_s2 = (RPP30 + 1) / (S2 + S2_spike + 1)) %>% 
+  ggplot(aes(x = log2(rpp30_vs_s2))) +
+  geom_histogram(bins = 100) +
+  geom_vline(xintercept = -1, color = "red", linetype = "dashed") +
+  xlab("log2 (RPP30 + 1) / (S2 + S2 Spike + 1)") +
+  # facet_wrap(~exp, ncol = 1) +
   theme_minimal()
 ```
 

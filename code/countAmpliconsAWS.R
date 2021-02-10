@@ -68,7 +68,7 @@ results <- read_csv("results.csv") %>%
                 index = i1,
                 index2 = i2) %>% 
   mutate(mergedIndex = paste0(index, index2)) %>% 
-  left_join(ss, by = c("mergedIndex","index","index2"))
+  full_join(ss, by = c("mergedIndex","index","index2"))
 
 
 # Add levels to indices for index swapping plots
@@ -88,8 +88,7 @@ saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 ##################
 
 classification <- results %>%
-  filter(!is.na(Plate_ID),
-         season == !!season) %>% 
+  filter(season == !!season) %>% 
   #right_join(ss) %>% 
   group_by_at(names(.)[!names(.) %in% c("Count", "amplicon")]) %>% 
   summarise(S2_spike = sum(Count[grepl("S2_spike_0",amplicon)], na.rm = TRUE),
@@ -100,7 +99,6 @@ classification <- results %>%
          S2 = ifelse(is.na(S2), 0, S2),
          RPP30 = ifelse(is.na(RPP30), 0, RPP30)) %>%
   mutate(s2_vs_spike = ((S2 + 1) / (S2_spike + 1)),
-         classification = NA,
          classification = ifelse(S2 + S2_spike < 100 & RPP30 < 10,
                                  "failed: low S2 & RPP30",
                                  ifelse(S2 + S2_spike < 100 & RPP30 >= 10,
@@ -111,13 +109,20 @@ classification <- results %>%
                                                       "COVID_pos",
                                                       ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
                                                              "COVID_neg",
-                                                             classification))))))
+                                                             NA))))),
+         ctrl_wells = ifelse(Sample_Well == "A01" & RPP30 < 10 & (S2 + S2_spike) >= 100 & s2_vs_spike <= 0.1,
+                             "pass",
+                             ifelse(Sample_Well == "B01" & classification == "COVID_neg",
+                                    "pass",
+                                    ifelse(Sample_Well %in% c("A01", "B01"),
+                                           "fail",
+                                           NA))))
 
 write_csv(classification, "LIMS_results.csv")
 
 amp.match.summary.df <- results %>% 
   group_by(amplicon) %>% 
-  summarise(sum = sum(Count)) %>% 
+  summarise(sum = sum(Count, na.rm = TRUE)) %>% 
   mutate(amplicon = ifelse(is.na(amplicon),
                            "no_align",
                            amplicon))
@@ -131,7 +136,7 @@ sum_matched <- results %>%
   filter(!is.na(Plate_ID),
          season == !!season) %>% 
   group_by(amplicon) %>% 
-  summarise(num_matched = sum(Count)) %>% 
+  summarise(num_matched = sum(Count, na.rm = TRUE)) %>% 
   mutate(amplicon = ifelse(is.na(amplicon),
                            "no_align",
                            amplicon)) %>% 

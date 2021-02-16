@@ -98,6 +98,10 @@ classification <- results %>%
   mutate(S2_spike = ifelse(is.na(S2_spike), 0, S2_spike),
          S2 = ifelse(is.na(S2), 0, S2),
          RPP30 = ifelse(is.na(RPP30), 0, RPP30)) %>%
+  group_by(Plate_ID) %>% 
+  mutate(rp_ctrl_cutoff = quantile(RPP30[RPP30 >= 10], probs = 0.1, type = 8),
+         rp_ctrl_cutoff = ifelse(is.na(rp_ctrl_cutoff), 0, rp_ctrl_cutoff)) %>% 
+  ungroup() %>% 
   mutate(s2_vs_spike = ((S2 + 1) / (S2_spike + 1)),
          classification = ifelse(S2 + S2_spike < 100 & RPP30 < 10,
                                  "failed: low S2 & RPP30",
@@ -110,13 +114,14 @@ classification <- results %>%
                                                       ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
                                                              "COVID_neg",
                                                              NA))))),
-         ctrl_wells = ifelse(Sample_Well == "A01" & RPP30 < 10 & (S2 + S2_spike) >= 100 & s2_vs_spike <= 0.1,
-                             "pass",
-                             ifelse(Sample_Well == "B01" & classification == "COVID_neg",
+         ctrl_wells = ifelse(!Sample_Well %in% c("A01","B01"),
+                             NA,
+                             ifelse(Sample_Well == "A01" & RPP30 <= rp_ctrl_cutoff & S2_spike >= 100 & s2_vs_spike <= 0.1,
                                     "pass",
-                                    ifelse(Sample_Well %in% c("A01", "B01"),
-                                           "fail",
-                                           NA))))
+                                    ifelse(Sample_Well == "B01" & classification == "COVID_neg",
+                                           "pass",
+                                           "fail")))) %>% 
+  arrange(Sample_ID)
 
 write_csv(classification, "LIMS_results.csv")
 

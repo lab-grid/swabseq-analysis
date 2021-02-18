@@ -1,5 +1,5 @@
 
-
+tic <- Sys.time()
 message("Loading Libraries")
 
 suppressMessages(library(argparser))
@@ -111,7 +111,7 @@ classification <- results %>%
                                                "failed: low RPP30",
                                                ifelse(s2_vs_spike > 0.1 & RPP30 >= 10,
                                                       "COVID_pos",
-                                                      ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
+                                                      ifelse(s2_vs_spike <= 0.1 & RPP30 >= 10,
                                                              "COVID_neg",
                                                              NA))))),
          ctrl_wells = ifelse(!Sample_Well %in% c("A01","B01"),
@@ -229,6 +229,8 @@ rmarkdown::render(
 
 exp_name <- strsplit(rundir,"/") %>% unlist() %>% tail(1)
 pdf_name <- paste0(exp_name,".pdf")
+
+Sys.time() - tic
 
 # Results file:
 # countTable.csv

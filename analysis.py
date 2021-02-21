@@ -84,9 +84,6 @@ def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
 
     attachments = {
         'LIMS_results.csv': b64encode_file(f"{rundir}/LIMS_results.csv"),
-        'run_info.csv': b64encode_file(f"{rundir}/run_info.csv"),
-        'countTable.csv': b64encode_file(f"{rundir}/countTable.csv"),
-        'SampleSheet.csv': b64encode_file(f"{rundir}/SampleSheet.csv"),
     }
     for pdf_attachment in glob.glob(f"{rundir}/*.pdf"):
         attachments[os.path.basename(pdf_attachment)] = b64encode_file(pdf_attachment)

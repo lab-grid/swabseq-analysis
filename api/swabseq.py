@@ -15,9 +15,6 @@ api = Namespace('swabseq', description='Operations for Swabseq sequence data ana
 swabseq_result = api.model('SwabseqResult', {})
 swabseq_attachments = api.model('SwabseqAttachments', {
     'LIMS_results.csv': fields.String(),
-    'run_info.csv': fields.String(),
-    'countTable.csv': fields.String(),
-    'SampleSheet.csv': fields.String(),
 })
 swabseq_output = api.model('SwabseqOutput', {
     'id': fields.String(),

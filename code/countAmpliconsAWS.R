@@ -1,5 +1,5 @@
 
-
+tic <- Sys.time()
 message("Loading Libraries")
 
 suppressMessages(library(argparser))
@@ -88,8 +88,7 @@ saveRDS(results, file=paste0(rundir, 'countTable.RDS'),version=2)
 ##################
 
 classification <- results %>%
-  filter(!is.na(Plate_ID),
-         season == !!season) %>% 
+  filter(season == !!season) %>% 
   #right_join(ss) %>% 
   group_by_at(names(.)[!names(.) %in% c("Count", "amplicon")]) %>% 
   summarise(S2_spike = sum(Count[grepl("S2_spike_0",amplicon)], na.rm = TRUE),
@@ -99,8 +98,11 @@ classification <- results %>%
   mutate(S2_spike = ifelse(is.na(S2_spike), 0, S2_spike),
          S2 = ifelse(is.na(S2), 0, S2),
          RPP30 = ifelse(is.na(RPP30), 0, RPP30)) %>%
+  group_by(Plate_ID) %>% 
+  mutate(rp_ctrl_cutoff = quantile(RPP30[RPP30 >= 10], probs = 0.1, type = 8),
+         rp_ctrl_cutoff = ifelse(is.na(rp_ctrl_cutoff), 0, rp_ctrl_cutoff)) %>% 
+  ungroup() %>% 
   mutate(s2_vs_spike = ((S2 + 1) / (S2_spike + 1)),
-         classification = NA,
          classification = ifelse(S2 + S2_spike < 100 & RPP30 < 10,
                                  "failed: low S2 & RPP30",
                                  ifelse(S2 + S2_spike < 100 & RPP30 >= 10,
@@ -109,15 +111,23 @@ classification <- results %>%
                                                "failed: low RPP30",
                                                ifelse(s2_vs_spike > 0.1 & RPP30 >= 10,
                                                       "COVID_pos",
-                                                      ifelse(s2_vs_spike < 0.1 & RPP30 >= 10,
+                                                      ifelse(s2_vs_spike <= 0.1 & RPP30 >= 10,
                                                              "COVID_neg",
-                                                             classification))))))
+                                                             NA))))),
+         ctrl_wells = ifelse(!Sample_Well %in% c("A01","B01"),
+                             NA,
+                             ifelse(Sample_Well == "A01" & RPP30 <= rp_ctrl_cutoff & S2_spike >= 100 & s2_vs_spike <= 0.1,
+                                    "pass",
+                                    ifelse(Sample_Well == "B01" & classification == "COVID_neg",
+                                           "pass",
+                                           "fail")))) %>% 
+  arrange(Sample_ID)
 
 write_csv(classification, "LIMS_results.csv")
 
 amp.match.summary.df <- results %>% 
   group_by(amplicon) %>% 
-  summarise(sum = sum(Count)) %>% 
+  summarise(sum = sum(Count, na.rm = TRUE)) %>% 
   mutate(amplicon = ifelse(is.na(amplicon),
                            "no_align",
                            amplicon))
@@ -131,7 +141,7 @@ sum_matched <- results %>%
   filter(!is.na(Plate_ID),
          season == !!season) %>% 
   group_by(amplicon) %>% 
-  summarise(num_matched = sum(Count)) %>% 
+  summarise(num_matched = sum(Count, na.rm = TRUE)) %>% 
   mutate(amplicon = ifelse(is.na(amplicon),
                            "no_align",
                            amplicon)) %>% 
@@ -219,6 +229,8 @@ rmarkdown::render(
 
 exp_name <- strsplit(rundir,"/") %>% unlist() %>% tail(1)
 pdf_name <- paste0(exp_name,".pdf")
+
+Sys.time() - tic
 
 # Results file:
 # countTable.csv

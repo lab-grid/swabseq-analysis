@@ -36,6 +36,8 @@ RUN apt-get update \
     parallel \
     python3-pip \
     bzip2 \
+    libcairo2-dev \
+    libfontconfig1-dev \
     ca-certificates \
     dos2unix \
     && apt-get clean \
@@ -62,7 +64,8 @@ RUN install2.r --error \
     sandwich \
     ggbeeswarm \
     stringdist \
-    argparser
+    argparser \
+    kableExtra
 
 # Install bioconductor packages
 RUN R --slave -e "BiocManager::install(c('savR', 'edgeR', 'qvalue', 'ShortRead', 'Rqc'))"

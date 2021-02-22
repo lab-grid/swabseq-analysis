@@ -25,9 +25,9 @@ params:
   seq.metrics: NA
   base_calls_plot: NA
   ind_na: NA
-header-includes:
-  - \usepackage{pdflscape}
-  - \usepackage{longtable}
+#header-includes:
+#  - \usepackage{pdflscape}
+#  - \usepackage{longtable}
 ---
 
 ## `r paste("Experiment:", params$experiment)`
@@ -470,59 +470,59 @@ eval(params$read_freq_plot)
 \tiny
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-classification %>%
-  filter(classification == "COVID_pos") %>%
-  dplyr::select(-index, -index2, -Plate_384_Number, -Col, -Row) %>% 
-  dplyr::rename(quad = Plate_384_Quadrant) %>% 
-  arrange(Plate_ID, Sample_Well) %>% 
-  # mutate(
-  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
-  #                 background = ifelse(RPP30 < 10, "red", "white"))
-  # ) %>%
-  # kable(escape = F, booktabs = F) #%>%
-  # kable_styling()
-  kableExtra::kable(format = "latex", longtable = TRUE, caption = "COVID Positive Samples") %>% 
-  kable_styling(latex_options = c("hold_position", "repeat_header")) %>% 
-  landscape()
+#classification %>%
+#  filter(classification == "COVID_pos") %>%
+#  dplyr::select(-index, -index2, -Plate_384_Number, -Col, -Row) %>% 
+#  dplyr::rename(quad = Plate_384_Quadrant) %>% 
+#  arrange(Plate_ID, Sample_Well) %>% 
+#  # mutate(
+#  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
+#  #                 background = ifelse(RPP30 < 10, "red", "white"))
+#  # ) %>%
+#  # kable(escape = F, booktabs = F) #%>%
+#  # kable_styling()
+#  kableExtra::kable(format = "latex", longtable = TRUE, caption = "COVID Positive Samples") %>% 
+#  kable_styling(latex_options = c("hold_position", "repeat_header")) %>% 
+#  landscape()
 ```
 
 \newpage
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-classification %>%
-  filter(grepl("failed:", classification)) %>%
-  dplyr::select(-index, -index2, -s2_vs_spike, -Plate_384_Number, -Col, -Row) %>%
-  dplyr::rename(quad = Plate_384_Quadrant) %>% 
-  arrange(Plate_ID, Sample_Well) %>% 
-  # mutate(
-  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
-  #                 background = ifelse(RPP30 < 10, "red", "white"))
-  # ) %>%
-  # kable(escape = F, booktabs = F) #%>%
-  # kable_styling()
-  kableExtra::kable(format = "latex", longtable = TRUE, caption = "Inconclusive Samples") %>% 
-  kable_styling(latex_options = c("hold_position", "repeat_header")) %>% 
-  # column_spec(1:16,width = "1in") %>%
-  landscape()
+#classification %>%
+#  filter(grepl("failed:", classification)) %>%
+#  dplyr::select(-index, -index2, -s2_vs_spike, -Plate_384_Number, -Col, -Row) %>%
+#  dplyr::rename(quad = Plate_384_Quadrant) %>% 
+#  arrange(Plate_ID, Sample_Well) %>% 
+#  # mutate(
+#  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
+#  #                 background = ifelse(RPP30 < 10, "red", "white"))
+#  # ) %>%
+#  # kable(escape = F, booktabs = F) #%>%
+#  # kable_styling()
+#  kableExtra::kable(format = "latex", longtable = TRUE, caption = "Inconclusive Samples") %>% 
+#  kable_styling(latex_options = c("hold_position", "repeat_header")) %>% 
+#  # column_spec(1:16,width = "1in") %>%
+#  landscape()
 ```
 
 \newpage
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-classification %>%
-  filter(classification == "COVID_neg") %>%
-  dplyr::select(-index, -index2, -Plate_384_Number, -Col, -Row) %>% 
-  dplyr::rename(quad = Plate_384_Quadrant) %>% 
-  arrange(Plate_ID, Sample_Well) %>% 
-  # mutate(
-  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
-  #                 background = ifelse(RPP30 < 10, "red", "white"))
-  # ) %>%
-  # kable(escape = F, booktabs = F) #%>%
-  # kable_styling()
-  kableExtra::kable(format = "latex", longtable = TRUE, caption = "COVID Negative Samples") %>% 
-  kable_styling(latex_options = c("hold_position", "repeat_header")) %>% 
-  landscape()
+#classification %>%
+#  filter(classification == "COVID_neg") %>%
+#  dplyr::select(-index, -index2, -Plate_384_Number, -Col, -Row) %>% 
+#  dplyr::rename(quad = Plate_384_Quadrant) %>% 
+#  arrange(Plate_ID, Sample_Well) %>% 
+#  # mutate(
+#  # RPP30 = cell_spec(RPP30, color = ifelse(RPP30 < 10, "white", "black"),
+#  #                 background = ifelse(RPP30 < 10, "red", "white"))
+#  # ) %>%
+#  # kable(escape = F, booktabs = F) #%>%
+#  # kable_styling()
+#  kableExtra::kable(format = "latex", longtable = TRUE, caption = "COVID Negative Samples") %>% 
+#  kable_styling(latex_options = c("hold_position", "repeat_header")) %>% 
+#  landscape()
 ```
 
 \normalsize

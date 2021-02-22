@@ -110,22 +110,23 @@ def log_disk_usage(path = None):
     print(stat)
 
 @celery.task()
-def run_analysis(basespace_id, season=None):
+def run_analysis(basespace_id, rundir=None, season=None):
     try:
         threads = int(os.environ.get('RSCRIPT_THREADS', '8'))
         debug = os.environ.get('RSCRIPT_DEBUG', 'False') == 'True'
+        rscript_rundir = os.environ.get('RSCRIPT_RUNDIR', os.getcwd())
 
         # Run R script and zip results to generate temp file
         if debug:
             # If we're in debug mode, don't delete the work directory
-            rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
+            rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=rscript_rundir).name
             log_disk_usage()
             try:
                 return do_analysis(rundir, basespace_id, threads, season, debug)
             finally:
                 log_disk_usage()
         else:
-            with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
+            with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=rscript_rundir) as rundir:
                 log_disk_usage()
                 try:
                     return do_analysis(rundir, basespace_id, threads, season, debug)

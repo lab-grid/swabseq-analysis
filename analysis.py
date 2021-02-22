@@ -111,9 +111,6 @@ def log_disk_usage(path = None):
 
 @celery.task()
 def run_analysis(basespace_id, season=None):
-    # Log the amount of storage available before starting the script.
-    log_disk_usage()
-        
     try:
         threads = int(os.environ.get('RSCRIPT_THREADS', '8'))
         debug = os.environ.get('RSCRIPT_DEBUG', 'False') == 'True'
@@ -122,10 +119,18 @@ def run_analysis(basespace_id, season=None):
         if debug:
             # If we're in debug mode, don't delete the work directory
             rundir = tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()).name
-            return do_analysis(rundir, basespace_id, threads, season, debug)
+            log_disk_usage()
+            try:
+                return do_analysis(rundir, basespace_id, threads, season, debug)
+            finally:
+                log_disk_usage()
         else:
             with tempfile.TemporaryDirectory(prefix=f"{basespace_id}-results-", dir=os.getcwd()) as rundir:
-                return do_analysis(rundir, basespace_id, threads, season, debug)
+                log_disk_usage()
+                try:
+                    return do_analysis(rundir, basespace_id, threads, season, debug)
+                finally:
+                    log_disk_usage()
     except Exception as ex:
         ex_str = traceback.format_exc()
         print(ex_str)
@@ -133,6 +138,3 @@ def run_analysis(basespace_id, season=None):
             'status': 'failed',
             'error': ex_str,
         }
-    finally:
-        # Log the amount of storage available after running the script.
-        log_disk_usage()

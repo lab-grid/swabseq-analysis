@@ -4,6 +4,7 @@ import glob
 import tempfile
 import traceback
 import os
+import shutil
 import subprocess
 from celery import Celery
 
@@ -101,12 +102,22 @@ def do_analysis(rundir, basespace_id, threads=8, season=None, debug=False):
         'attachments': attachments,
     }
 
+def log_disk_usage(path = None):
+    if path is None:
+        path = os.getcwd()
+    stat = shutil.disk_usage(path)
+    print(f"Disk usage statistics for '{path}':")
+    print(stat)
+
 @celery.task()
 def run_analysis(basespace_id, season=None):
+    # Log the amount of storage available before starting the script.
+    log_disk_usage()
+        
     try:
         threads = int(os.environ.get('RSCRIPT_THREADS', '8'))
         debug = os.environ.get('RSCRIPT_DEBUG', 'False') == 'True'
-        
+
         # Run R script and zip results to generate temp file
         if debug:
             # If we're in debug mode, don't delete the work directory
@@ -122,3 +133,6 @@ def run_analysis(basespace_id, season=None):
             'status': 'failed',
             'error': ex_str,
         }
+    finally:
+        # Log the amount of storage available after running the script.
+        log_disk_usage()

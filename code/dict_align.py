@@ -3,22 +3,21 @@
 # quantification with NGS                       #
 #################################################
 import argparse
+import itertools
+import os
 import time
 import pandas as pd
-from os import listdir
-from os.path import isfile, join
 import subprocess
 import sys
-import string
 from itertools import chain, combinations, product, repeat, compress
 import xml.etree.ElementTree as ET
 import csv
 from collections import defaultdict
+from contextlib import contextmanager
 
 
 def hamming_circle(s, n, alphabet):
     """
-
     Generate strings over alphabet whose Hamming distance from s is
     exactly n.
 
@@ -45,8 +44,11 @@ def hamming_ball(s, n, alphabet):
     Generate strings over alphabet whose Hamming distance from s is
     less than or equal to n.
     """
-    return chain.from_iterable(hamming_circle(s, i, alphabet)
-                               for i in range(n + 1))
+    return chain.from_iterable(
+        hamming_circle(s, i, alphabet)
+        for i
+        in range(n + 1)
+    )
 
 
 
@@ -90,7 +92,6 @@ def remove_duplicates(seqs, classification, target, pattern):
     dups = list_duplicates_of(seqs, pattern)
     
     if len(dups) > 1:
-        
         classification[dups[0]] = "undetermined"
         
         del seqs[dups[1]]
@@ -103,7 +104,7 @@ def remove_duplicates(seqs, classification, target, pattern):
 # Generate sequence dictionary with desired Hamming distance #
 ##############################################################
 
-def generate_dictionary(sequence, target, indels = True, rc = False, ham_dist = 1):
+def generate_dictionary(sequence, target, indels: bool = True, rc: bool = False, ham_dist: int = 1):
     """
     Generates a dictionary of expected variants for a given
     sequence from single base substitutions or single base
@@ -195,7 +196,7 @@ def generate_dictionary(sequence, target, indels = True, rc = False, ham_dist = 
 # Sequence matching function #
 ##############################
 
-def seq_match(index, seqs, ret = 'target'):
+def seq_match(index, seqs, ret: str = 'target'):
     match = []
     for i in seqs:
         try:
@@ -203,46 +204,103 @@ def seq_match(index, seqs, ret = 'target'):
         except:
             match.append(float('NaN'))
             #match.append(i)
-    return(match)
+    return match
 
 #################################################
 # Function to read in sequences from FASTQ file #
 #################################################
 
-def read_fastq(filename):
-    with open(filename) as f:
-        return(f.read().splitlines())
+def read_fastq_gz(filename: str, max_line_length: int) -> list:
+    with subprocess.Popen(['gunzip', '-c', filename], stdout=subprocess.PIPE) as proc:
+        records = list(itertools.islice(proc.stdout, 1, None, 4))
+        if len(records[1]) > max_line_length:
+            records[:] = [record[0:max_line_length] for record in records]
+
+        proc_code = proc.wait()
+        if proc_code != 0:
+            raise Exception(f"`gunzip -c {filename}` exited with non-zero code: {str(proc_code)}")
+
+        return records
+
+#######################################################
+# Function to list the .fastq.gz files in a directory #
+#######################################################
+
+def list_fastq_gz_files(dir: str, extension: str = 'fastq.gz') -> list:
+    return [
+        f
+        for f
+        in os.listdir(dir)
+        if os.path.isfile(os.path.join(dir, f)) and f.endswith(f"{extension}")
+    ]
+
+########################################
+# Converts arguments to boolean values #
+########################################
+
+def str2bool(v) -> bool:
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+#######################################################
+# Times an operation that takes place in a with block #
+#######################################################
+
+@contextmanager
+def timing():
+    tic = time.time()
+    try:
+        yield None
+    finally:
+        toc = time.time()
+        print(toc - tic)
 
 
+###################################################
+# Parses command-line arguments passed to program #
+###################################################
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument(
+        '--rundir',
+        dest='rundir',
+        type=str,
+        help='path to the run directory',
+    )
+    parser.add_argument(
+        '--dictdir',
+        dest='dictpath',
+        type=str,
+        help='path to the dictionary files',
+    )
+    parser.add_argument(
+        '--readmode',
+        dest='readmode',
+        default='rev',
+        help='direction of i5 reads',
+    )
+    parser.add_argument(
+        '--debug',
+        dest='debug',
+        type=str2bool,
+        default=False,
+        help='debug mode, extra output',
+    )
+    return parser.parse_args()
 
 #===============================================================================
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='')
-    parser.add_argument('--rundir',
-                        dest = 'rundir',
-                        type=str,
-                        help='path to the run directory')
-    parser.add_argument('--dictdir',
-                        dest = 'dictpath',
-                        type=str,
-                        help='path to the dictionary files')
-    parser.add_argument('--readmode',
-                        dest='readmode',
-                        default='rev',
-                        help='direction of i5 reads')
-    parser.add_argument('--debug',
-                        dest='debug',
-                        default='FALSE',
-                        help='debug mode, extra output')
-    args = parser.parse_args()
+    args = parse_args()
 
-
-
-    fastq_path = args.rundir + 'out/'
-    files = [f for f in listdir(fastq_path) if isfile(join(fastq_path, f))]
-    files = list(filter(lambda x:'.fastq.gz' in x, files))
+    fastq_path = f"{os.path.join(args.rundir, 'out')}/"
     debug = args.debug == 'TRUE'
 
     # Unzip FASTQ Files
@@ -266,133 +324,96 @@ if __name__ == '__main__':
     # Make dictionaries
     print('Creating Dictionaries')
 
-    # Load in index 1 - always reverse compliment
+    ind1 = []
+    ind_target = []
+    ind2 = []
     with open("../hash_tables/384_plate_map.csv") as f:
-        ind1 = [row["index"] for row in csv.DictReader(f)]
+        for row in csv.DictReader(f):
+            # Load in index 1 - always reverse compliment
+            ind1.append(row['index'])
+            ind_target.append(row['target'])
+            # Load in index 2 - reverse compliment depending on instrument / kit
+            ind2.append(row['index2'])
 
-    with open("../hash_tables/384_plate_map.csv") as f:
-        ind_target = [row["target"] for row in csv.DictReader(f)]
-
-
-    ind1_hash_table = generate_dictionary(ind1, ind_target, rc = True, ham_dist = 1)
-
-    # Load in index 2 - reverse compliment depending on instrument / kit
-    with open("../hash_tables/384_plate_map.csv") as f:
-        ind2 = [row["index2"] for row in csv.DictReader(f)]
-
-    ind2_hash_table = generate_dictionary(ind2, ind_target, rc = rc, ham_dist = 1)
+    ind1_hash_table = generate_dictionary(ind1, ind_target, rc=True, ham_dist=1)
+    ind2_hash_table = generate_dictionary(ind2, ind_target, rc=rc, ham_dist=1)
 
     # Load in amplicons
+    amps = []
+    amp_targets = []
     with open("../hash_tables/amplicon_map.csv") as f:
-        amps = [row["sequence"] for row in csv.DictReader(f)]
-
-    with open("../hash_tables/amplicon_map.csv") as f:
-        amp_targets = [row["target"] for row in csv.DictReader(f)]
+        for row in csv.DictReader(f):
+            amps.append(row['sequence'])
+            amp_targets.append(row['target'])
 
     amps_hash_table = generate_dictionary(amps, amp_targets)
-    
 
     # Unzip fastq.gz files
-    tic = time.time()
+    print('Decompressing and reading fastq.gz files')
+    with timing():
+        files = list_fastq_gz_files(fastq_path)
 
-    print('Decompressing fastq.gz files')
-    files = [f for f in listdir(fastq_path) if isfile(join(fastq_path, f))]
-    files = list(filter(lambda x:'.fastq.gz' in x, files))
-
-    for gz in files:
-        fastq = gz[: -3]
+        amps = []
+        i1 = []
+        i2 = []
         try:
-            subprocess.check_call('gunzip -c ' + fastq_path + gz + ' >' + fastq_path + fastq, shell=True)
-        except:
-            sys.exit('Shell error')
-
-    # Read in FASTQ files and align
-    print('Reading in fastq files')
-
-    ## Amplicons
-    with open(join(fastq_path, "Undetermined_S0_R1_001.fastq")) as f:
-        seqs = f.read().splitlines()
-    amps = seqs[1::4] # Select only the sequences from the FASTQ file
-
-    if len(amps[1]) > 26:
-        for i, s in enumerate(amps):
-            amps[i] = amps[i][0:26]
-
-    ## I1
-    with open(join(fastq_path, "Undetermined_S0_I1_001.fastq")) as f:
-        seqs = f.read().splitlines() 
-    i1 = seqs[1::4] # Select only the sequences from the FASTQ file
-
-    if len(i1[1]) > 10:
-        for i, s in enumerate(i1):
-            i1[i] = i1[i][0:10]
-
-    ## I2
-    with open(join(fastq_path, "Undetermined_S0_I2_001.fastq")) as f:
-        seqs = f.read().splitlines() 
-    i2 = seqs[1::4] # Select only the sequences from the FASTQ file
-
-    if len(i2[1]) > 10:
-        for i, s in enumerate(i2):
-            i2[i] = i2[i][0:10]
-
-    toc = time.time()
-    print(toc - tic)
+            for gz in files:
+                if gz == 'Undetermined_S0_R1_001.fastq.gz':
+                    amps = read_fastq_gz(fastq_path+gz, 26)
+                elif gz == 'Undetermined_S0_I1_001.fastq':
+                    i1 = read_fastq_gz(fastq_path+gz, 10)
+                elif gz == 'Undetermined_S0_I2_001.fastq':
+                    i2 = read_fastq_gz(fastq_path+gz, 10)
+        except Exception as ex:
+            sys.exit(f"Error decompressing `{gz}`: {str(ex)}")
 
     print('Aligning sequences')
-
-    tic = time.time()
-
-    results = {
-        'i1' : seq_match(ind1_hash_table, i1, ret = 'sequence'),
-        'i2' : seq_match(ind2_hash_table, i2, ret = 'sequence'),
-        'amps' : seq_match(amps_hash_table, amps, ret = 'target')
-          }
-
-    toc = time.time()
-
-    print(toc - tic)
-
-    # Remove fastq files
-    print('Removing uncompressed fastq files')
-
-    for gz in files:
-        fastq = gz[: -3]
-        try:
-            subprocess.check_call('rm ' + fastq_path + fastq, shell=True)
-        except:
-            sys.exit('Shell error')
+    with timing():
+        results = {
+            'i1': seq_match(ind1_hash_table, i1, ret='sequence'),
+            'i2': seq_match(ind2_hash_table, i2, ret='sequence'),
+            'amps': seq_match(amps_hash_table, amps, ret='target'),
+        }
 
     # Output results
     print('Counting Amplicions')
 
     results = pd.DataFrame(results)
-
-    if(debug):
-
+    if debug:
         print(results.groupby(['amps'], dropna=False).size())
         
         # Top unalined seqs
         # Amps
         check_for_nan = results['amps'].isnull()
-        nans = list(check_for_nan)
-        na_amps = pd.DataFrame(list(compress(amps, nans)), columns = ['amps'])
-        na_amps.groupby(['amps'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_amps.csv"))
+        na_amps = pd.DataFrame(list(compress(amps, check_for_nan)), columns=['amps'])
+        na_amps\
+            .groupby(['amps'], dropna=False)\
+            .size()\
+            .sort_values()\
+            .tail()\
+            .to_csv(os.path.join(args.rundir, "top_unaligned_amps.csv"))
 
         # I1
         check_for_nan = results['i1'].isnull()
-        nans = list(check_for_nan)
-        na_amps = pd.DataFrame(list(compress(i1, nans)), columns = ['i1'])
-        na_amps.groupby(['i1'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i1.csv"))
+        na_amps = pd.DataFrame(list(compress(i1, check_for_nan)), columns=['i1'])
+        na_amps\
+            .groupby(['i1'], dropna=False)\
+            .size()\
+            .sort_values()\
+            .tail()\
+            .to_csv(os.path.join(args.rundir, "top_unaligned_i1.csv"))
 
         # I2
         check_for_nan = results['i2'].isnull()
-        nans = list(check_for_nan)
-        na_amps = pd.DataFrame(list(compress(i2, nans)), columns = ['i2'])
-        na_amps.groupby(['i2'], dropna=False).size().sort_values().tail().to_csv(join(args.rundir, "top_unaligned_i2.csv"))
+        na_amps = pd.DataFrame(list(compress(i2, check_for_nan)), columns=['i2'])
+        na_amps\
+            .groupby(['i2'], dropna=False)\
+            .size()\
+            .sort_values()\
+            .tail()\
+            .to_csv(os.path.join(args.rundir, "top_unaligned_i2.csv"))
 
-    
     results = results.groupby(['i1','i2','amps'], dropna=False).size()
-    results.to_csv(join(args.rundir, "results.csv"))
+    results.to_csv(os.path.join(args.rundir, "results.csv"))
 
     print("Finished")

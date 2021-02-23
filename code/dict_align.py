@@ -351,21 +351,20 @@ if __name__ == '__main__':
     # Unzip fastq.gz files
     print('Decompressing and reading fastq.gz files')
     with timing():
-        files = list_fastq_gz_files(fastq_path)
-
-        amps = []
-        i1 = []
-        i2 = []
         try:
-            for gz in files:
-                if gz == 'Undetermined_S0_R1_001.fastq.gz':
-                    amps = read_fastq_gz(fastq_path+gz, 26)
-                elif gz == 'Undetermined_S0_I1_001.fastq':
-                    i1 = read_fastq_gz(fastq_path+gz, 10)
-                elif gz == 'Undetermined_S0_I2_001.fastq':
-                    i2 = read_fastq_gz(fastq_path+gz, 10)
+            amps = read_fastq_gz(os.path.join(fastq_path, 'Undetermined_S0_R1_001.fastq.gz'), 26)
         except Exception as ex:
-            sys.exit(f"Error decompressing `{gz}`: {str(ex)}")
+            sys.exit(f"Error decompressing `Undetermined_S0_R1_001.fastq.gz`: {str(ex)}")
+
+        try:
+            i1 = read_fastq_gz(os.path.join(fastq_path, 'Undetermined_S0_I1_001.fastq.gz'), 10)
+        except Exception as ex:
+            sys.exit(f"Error decompressing `Undetermined_S0_I1_001.fastq.gz`: {str(ex)}")
+
+        try:
+            i2 = read_fastq_gz(os.path.join(fastq_path, 'Undetermined_S0_I2_001.fastq.gz'), 10)
+        except Exception as ex:
+            sys.exit(f"Error decompressing `Undetermined_S0_I2_001.fastq.gz`: {str(ex)}")
 
     print('Aligning sequences')
     with timing():

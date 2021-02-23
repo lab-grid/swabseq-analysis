@@ -212,7 +212,11 @@ def seq_match(index, seqs, ret: str = 'target'):
 
 def read_fastq_gz(filename: str, max_line_length: int) -> list:
     with subprocess.Popen(['gunzip', '-c', filename], stdout=subprocess.PIPE) as proc:
-        records = list(itertools.islice(proc.stdout, 1, None, 4))
+        records = [
+            str(line, 'utf-8') if type(line) == bytes else line
+            for line
+            in itertools.islice(proc.stdout, 1, None, 4)
+        ]
         if len(records[1]) > max_line_length:
             records[:] = [record[0:max_line_length] for record in records]
 

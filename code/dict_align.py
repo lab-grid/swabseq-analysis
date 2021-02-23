@@ -266,7 +266,7 @@ def timing():
 # Parses command-line arguments passed to program #
 ###################################################
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='')
     parser.add_argument(
         '--rundir',
@@ -414,5 +414,8 @@ if __name__ == '__main__':
 
     results = results.groupby(['i1','i2','amps'], dropna=False).size()
     results.to_csv(os.path.join(args.rundir, "results.csv"))
+
+    print('Wrote pandas dataframe:')
+    print(results)
 
     print("Finished")

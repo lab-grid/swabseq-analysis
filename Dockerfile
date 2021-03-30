@@ -1,24 +1,7 @@
 ARG SERVER_VERSION=local+container
 
-FROM centos:7 AS bcl-build
-
-RUN test -n $SERVER_VERSION
-RUN yum update -y \
-    && yum install -y wget unzip git python-devel \
-    && yum groupinstall -y "Development Tools"
-
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# get and install bcl2fastq
-RUN cd /tmp \
-    && wget https://www.dropbox.com/s/idi0xfu0thurk7q/bcl2fastq2-v2-20-0-linux-x86-64.zip \
-    && unzip bcl2fastq2-v2-20-0-linux-x86-64.zip \
-    && yum install -y bcl2fastq2-v2.20.0.422-Linux-x86_64.rpm
-RUN rm /tmp/bcl2fastq2*
-
 # Start with rocker/tidyverse base image
 FROM rocker/verse:3.6.3
-COPY --from=bcl-build /usr/local/bin/bcl2fastq /usr/local/bin/bcl2fastq
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Install extra *nix utils
@@ -36,12 +19,19 @@ RUN apt-get update \
     parallel \
     python3-pip \
     bzip2 \
+    bsdtar \
     libcairo2-dev \
     libfontconfig1-dev \
     ca-certificates \
     dos2unix \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# get and install bcl2fastq
+RUN wget -qO- https://www.dropbox.com/s/idi0xfu0thurk7q/bcl2fastq2-v2-20-0-linux-x86-64.zip \
+    | bsdtar -xOf - bcl2fastq2-v2.20.0.422-Linux-x86_64.rpm \
+    | bsdtar -xf - -C / usr/local/bin/bcl2fastq
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Basespace
@@ -77,14 +67,9 @@ RUN mkdir /root/.basespace/
 # Python Env
 WORKDIR /app
 
-RUN pip3 install pipenv
-
-# RUN conda install scikit-learn pandas
-# RUN conda install -c rdkit rdkit
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
-RUN pipenv lock --dev --requirements > requirements.txt
-RUN pip3 install -r requirements.txt
+RUN pip3 install \
+    pandas \
+    git+https://github.com/lab-grid/script-runner.git@3cdb80fa788ce5fdb139e90c4025b11e7f70c2f0
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN dos2unix /entrypoint.sh
@@ -93,7 +78,7 @@ RUN chmod +x /entrypoint.sh
 COPY ./ .
 
 ENV PYTHONPATH="${RBASE}:${PYTHONPATH}"
-ENV FLASK_APP=/app/main.py
+ENV FLASK_APP=script_runner.main:app
 ENV SERVER_VERSION=$SERVER_VERSION
 
 ENTRYPOINT [ "/entrypoint.sh" ]

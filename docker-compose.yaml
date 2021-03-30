@@ -1,11 +1,13 @@
 version: "3.7"
 services:
   server:
+    image: labflow/swabseq-analysis-server:latest
+    # image: labflow/swabseq-analysis-server-example:latest
     build:
+      # dockerfile: Dockerfile.example
       context: .
       args:
         SERVER_VERSION: local+devcontainer
-    image: labflow/swabseq-analysis-server:latest
     command: "python3 -m flask run --host=0.0.0.0 --port=5000"
     environment:
       - FLASK_ENV=development
@@ -35,6 +37,7 @@ services:
     environment:
       - "CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379"
       - "CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379"
+      # - "COMMAND_RUNDIR_BASE=/app/examples"
     volumes:
       - ./.basespace:/root/.basespace
       - ./:/app

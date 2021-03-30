@@ -119,3 +119,5 @@ cython_debug/
 !.basespace/.gitkeep
 .Rproj.user
 swabseq-analysis.Rproj
+# VSCode
+.vscode/

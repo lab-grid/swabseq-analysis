@@ -10,6 +10,8 @@ p <- add_argument(p, "--threads", default = 1, help = "number of threads for bcl
 p <- add_argument(p, "--debug", default = FALSE, type = "logical", help = "debug mode generates extra data and plots")
 p <- add_argument(p, "--season", default = "winter", help = "we have 4 fwd/rev primer pair modes, each 
                   named after one of the 4 seasons. The original pairing is named winter and is the default.")
+p <- add_argument(p, "--skipDownload", default = FALSE, type = "logical", help = "Skips basespace download.
+                  If present, script expects bcl files to be present in rundir.")
 args <- parse_args(p)
 
 #load required packages
@@ -25,6 +27,7 @@ basespaceID <- args$basespaceID
 threads <- args$threads
 debug <- args$debug
 season <- args$season
+skipDownload <- args$skipDownload
 
 
 # setwd(rundir)
@@ -44,7 +47,9 @@ fastqR1  <- 'out/Undetermined_S0_R1_001.fastq.gz'
 
 if(!file.exists(fastqR1)) {
   # Pull BCLs from basespace [skip this section if you already placed bcls in rundir/bcls/] ------------
-  system(paste("bs download run --name", basespaceID, "-o ."))
+  if(!skipDownload) {
+    # system(paste("bs download run --name", basespaceID, "-o ."))
+  }
   
   # Run bcl2fastq to generate fastq.gz files (no demux is happening here)
   # NOTE: this is using 64 threads and running on a workstation, reduce threads if necessary

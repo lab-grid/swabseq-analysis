@@ -1,20 +1,5 @@
-locals {
-  aws_region = "us-west-1"
-
-  stack_name = "swabseq-analysis-example"
-
-  image_tag = "sha-1c269d6d"
-
-  dns_zone_id = ""
-  dns_name    = "swabseq-analysis-example.flow.labgrid.com"
-
-  auth0_domain    = "labgrid.us.auth0.com"
-  auth0_audience  = "https://api.flow.labgrid.com"
-  auth0_client_id = "gK4lbHXWCncdK3WEVHZ70H74yiOsf4Qo"
-}
-
 provider "aws" {
-  region = local.aws_region
+  region = var.aws_region
 }
 
 terraform {
@@ -99,15 +84,15 @@ module "ecs" {
 # swabseq-analysis ------------------------------------------------------------
 
 module "swabseq_analysis" {
-  source = "./swabseq-analysis-aws-ecs"
+  source = "github.com/lab-grid/terraform-aws-ecs-script-runner"
 
-  aws_region = local.aws_region
+  aws_region = var.aws_region
 
-  stack_name = local.stack_name
+  stack_name = var.stack_name
 
-  auth0_domain    = local.auth0_domain
-  auth0_audience  = local.auth0_audience
-  auth0_client_id = local.auth0_client_id
+  auth0_domain    = var.auth0_domain
+  auth0_audience  = var.auth0_audience
+  auth0_client_id = var.auth0_client_id
 
   ecs_task_execution_role_arn  = aws_iam_role.labflow_role.arn
   ecs_task_execution_role_name = aws_iam_role.labflow_role.name
@@ -119,8 +104,8 @@ module "swabseq_analysis" {
   vpc_database_subnet_ids = module.vpc.database_subnets
 
   image     = "labflow/swabseq-analysis-server-example"
-  image_tag = local.image_tag
+  image_tag = var.image_tag
 
-  dns_name    = local.dns_name
-  dns_zone_id = local.dns_zone_id
+  dns_name    = var.dns_name
+  dns_zone_id = var.dns_zone_id
 }

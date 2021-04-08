@@ -123,6 +123,11 @@ jobs:
           build-args: |
             SERVER_VERSION=${{ steps.prep.outputs.hashtag }}
 
+  deploy-aws-example:
+    needs: publish-example
+    name: Deploy swabseq-analysis-example to AWS
+    runs-on: ubuntu-latest
+    steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -132,6 +137,7 @@ jobs:
 
       - name: Setup Terraform tfvars
         uses: nowactions/envsubst@v1
+        working-directory: ./examples/aws
         with:
           input: ./example.tfvars
           output: ./terraform.tfvars
@@ -144,6 +150,7 @@ jobs:
           IMAGE_TAG: sha-${GITHUB_SHA::8}
 
       - name: Setup Terraform
+        working-directory: ./examples/aws
         uses: hashicorp/setup-terraform@v1
 
       # - name: Terraform Format
@@ -152,15 +159,18 @@ jobs:
 
       - name: Terraform Init
         id: init
+        working-directory: ./examples/aws
         run: terraform init
 
       - name: Terraform Plan
         id: plan
+        working-directory: ./examples/aws
         if: github.event_name == 'pull_request'
         run: terraform plan -no-color
         continue-on-error: true
 
       - uses: actions/github-script@v3
+        working-directory: ./examples/aws
         if: github.event_name == 'pull_request'
         env:
           PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
@@ -192,6 +202,89 @@ jobs:
         run: exit 1
 
       - name: Terraform Apply
+        working-directory: ./examples/aws
+        if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: terraform apply -auto-approve
+
+  deploy-azure-example:
+    needs: publish-example
+    name: Deploy swabseq-analysis-example to Azure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Azure credentials
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform tfvars
+        uses: nowactions/envsubst@v1
+        working-directory: ./examples/azure
+        with:
+          input: ./example.tfvars
+          output: ./terraform.tfvars
+        env:
+          DNS_SUBDOMAIN: ${{secrets.DNS_SUBDOMAIN}}
+          DNS_DOMAIN: ${{secrets.DNS_DOMAIN}}
+          DNS_ZONE_NAME: ${{secrets.DNS_ZONE_NAME}}
+          AUTH0_DOMAIN: ${{secrets.AUTH0_DOMAIN}}
+          AUTH0_AUDIENCE: ${{secrets.AUTH0_AUDIENCE}}
+          AUTH0_CLIENT_ID: ${{secrets.AUTH0_CLIENT_ID}}
+          IMAGE_TAG: sha-${GITHUB_SHA::8}
+
+      - name: Setup Terraform
+        working-directory: ./examples/azure
+        uses: hashicorp/setup-terraform@v1
+
+      # - name: Terraform Format
+      #   id: fmt
+      #   run: terraform fmt -check
+
+      - name: Terraform Init
+        id: init
+        working-directory: ./examples/azure
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ./examples/azure
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color
+        continue-on-error: true
+
+      - uses: actions/github-script@v3
+        working-directory: ./examples/azure
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`${process.env.PLAN}\`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+
+            await github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        working-directory: ./examples/azure
         if: (github.event_name == 'release') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: terraform apply -auto-approve
 

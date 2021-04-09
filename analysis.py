@@ -99,7 +99,7 @@ def build_response(rundir, status='ready'):
     # TODO: Add input args to response as keys.
 
     if settings.outputs.results.format == 'csv':
-        response['results'] = read_csv_as_dict_list(settings.outputs.results.input_path)
+        response['results'] = read_csv_as_dict_list(os.path.join(rundir, settings.outputs.results.input_path))
         if settings.outputs.results.remapped_columns is not None:
             remapped_columns = {}
             skip_lists = {}
@@ -113,7 +113,7 @@ def build_response(rundir, status='ready'):
                     results.append(result)
             response['results'] = results
     elif settings.outputs.results.format == 'json':
-        response['results'] = read_json_file(settings.outputs.results.input_path)
+        response['results'] = read_json_file(os.path.join(rundir, settings.outputs.results.input_path))
 
     return response
 

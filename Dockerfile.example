@@ -82,7 +82,7 @@ RUN chmod +x /entrypoint.sh
 
 COPY ./ .
 
-RUN echo "${EXAMPLE_BCLS_URL}"
+RUN mkdir /base-rundir
 RUN wget -qO- https://swabseq-analysis-examples.s3-us-west-1.amazonaws.com/bcls/H3FY3K.tar.gz \
     | tar xvz -C /base-rundir
 

@@ -105,7 +105,7 @@ def build_response(rundir, status='ready'):
             skip_lists = {}
             for remapped_column in settings.outputs.results.remapped_columns:
                 remapped_columns[remapped_column.output_name] = remapped_column.input_name
-                skip_lists[remapped_column.output_name] = set(remapped_column.skip_list)
+                skip_lists[remapped_column.output_name] = set(remapped_column.skip_list) if remapped_column.skip_list is not None else set()
             results = []
             for row in response['results']:
                 result = rename_fields(row, remapped_columns)

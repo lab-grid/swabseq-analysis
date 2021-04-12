@@ -17,7 +17,20 @@ To run the server locally:
 docker-compose up --build
 ```
 
-Before running first time, generate a default.cfg file:
+To test, run 2 scripts. One to generate results for the demo sequencing data, and the other to retrieve those results (use .ps only if using Microsoft Powershell):
+```
+./test_unauthenticated.sh
+<record the id returned>
+<wait several minutes until server stops printing processing messages>
+./test_unauthenticated-results.sh <id> > demo_output.json
+```
+
+Before running first time, create a .env file:
+```
+cp example.env .env
+```
+
+Before running first time, if you will pull sequencing data from Basespace, generate a default.cfg file:
 
 ```
 docker-compose run --rm server bs auth \
@@ -28,7 +41,7 @@ docker-compose run --rm server bs auth \
 This will create a `default.cfg` file in the `./.basespace` directory. Future calls to `docker-compose up` will use
 the credentials saved in the `./.basespace` directory.
 
-## Script Usage
+## Original Script Usage instructions for demo script:
 
 * `Rscript countAmpliconsAWS.R --basespaceID [ID for run] --threads [number of threads for running bcl2fastq]`
 * The `--basespaceID` is used to identify the run on BaseSpace and then download the raw data which is then

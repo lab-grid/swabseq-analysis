@@ -77,14 +77,7 @@ RUN mkdir /root/.basespace/
 # Python Env
 WORKDIR /app
 
-RUN pip3 install pipenv
-
-# RUN conda install scikit-learn pandas
-# RUN conda install -c rdkit rdkit
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
-RUN pipenv lock --dev --requirements > requirements.txt
-RUN pip3 install -r requirements.txt
+RUN pip3 install git+https://github.com/lab-grid/script-runner.git@e7fe853a4e553f3a3c889d2724de40b232b08081
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN dos2unix /entrypoint.sh

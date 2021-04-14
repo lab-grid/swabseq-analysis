@@ -77,7 +77,9 @@ RUN mkdir /root/.basespace/
 # Python Env
 WORKDIR /app
 
-RUN pip3 install git+https://github.com/lab-grid/script-runner.git@936ddc37a52966e905aa6a099c02bc06e55984f6
+RUN pip3 install \
+    pandas \
+    git+https://github.com/lab-grid/script-runner.git@3cdb80fa788ce5fdb139e90c4025b11e7f70c2f0
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN dos2unix /entrypoint.sh

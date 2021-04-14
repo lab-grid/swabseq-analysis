@@ -35,7 +35,7 @@ services:
       dockerfile: Dockerfile.example
       args:
         SERVER_VERSION: local+devcontainer
-    command: "python3 -m celery -A analysis worker"
+    command: "python3 -m celery -A script_runner.analysis worker"
     environment:
       - "CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379"
       - "CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379"

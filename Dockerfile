@@ -77,7 +77,7 @@ RUN mkdir /root/.basespace/
 # Python Env
 WORKDIR /app
 
-RUN pip3 install git+https://github.com/lab-grid/script-runner.git@e7fe853a4e553f3a3c889d2724de40b232b08081
+RUN pip3 install git+https://github.com/lab-grid/script-runner.git@936ddc37a52966e905aa6a099c02bc06e55984f6
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN dos2unix /entrypoint.sh
@@ -86,7 +86,7 @@ RUN chmod +x /entrypoint.sh
 COPY ./ .
 
 ENV PYTHONPATH="${RBASE}:${PYTHONPATH}"
-ENV FLASK_APP=/app/main.py
+ENV FLASK_APP=script_runner.main:app
 ENV SERVER_VERSION=$SERVER_VERSION
 
 ENTRYPOINT [ "/entrypoint.sh" ]

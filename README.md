@@ -6,7 +6,7 @@ Original code has been edited in the following ways:
 - deleted the option to push results to github
 - instead, it just writes results to local disk, in provided directory path (which will be used by Flask API wrapper to
   write to a random temp directory)
-- added Flask app.py that calls the R scripts
+- added [lab-grid/script-runner](https://github.com/lab-grid/script-runner)
 - added a Dockerfile that logs into Basespace to be able to get files, and installs the necessary R and Python
   dependencies.
 

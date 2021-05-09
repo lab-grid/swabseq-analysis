@@ -48,7 +48,7 @@ fastqR1  <- 'out/Undetermined_S0_R1_001.fastq.gz'
 if(!file.exists(fastqR1)) {
   # Pull BCLs from basespace [skip this section if you already placed bcls in rundir/bcls/] ------------
   if(!skipDownload) {
-    # system(paste("bs download run --name", basespaceID, "-o ."))
+    system(paste("bs download run --name", basespaceID, "-o ."))
   }
   
   # Run bcl2fastq to generate fastq.gz files (no demux is happening here)

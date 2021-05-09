@@ -1,10 +1,8 @@
 version: "3.7"
 services:
   server:
-    # image: labflow/swabseq-analysis-server:latest
-    image: labflow/swabseq-analysis-server-example:latest
+    image: labflow/swabseq-analysis-server:latest
     build:
-      dockerfile: Dockerfile.example
       context: .
       args:
         SERVER_VERSION: local+devcontainer
@@ -28,11 +26,9 @@ services:
       - ./.basespace:/root/.basespace
       - ./:/app
   worker:
-    # image: labflow/swabseq-analysis-server:latest
-    image: labflow/swabseq-analysis-server-example:latest
+    image: labflow/swabseq-analysis-server:latest
     build:
       context: .
-      dockerfile: Dockerfile.example
       args:
         SERVER_VERSION: local+devcontainer
     command: "python3 -m celery -A script_runner.analysis worker"

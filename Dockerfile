@@ -69,7 +69,7 @@ WORKDIR /app
 
 RUN pip3 install \
     pandas \
-    git+https://github.com/lab-grid/script-runner.git@3cdb80fa788ce5fdb139e90c4025b11e7f70c2f0
+    script-runner==v0.18
 
 COPY ./entrypoint.sh /entrypoint.sh
 RUN dos2unix /entrypoint.sh

@@ -34,7 +34,7 @@ jobs:
           echo ::set-output name=hashtag::"sha-${GITHUB_SHA::8}"
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Cache Docker layers
         uses: actions/cache@v2.1.5
         with:
@@ -92,7 +92,7 @@ jobs:
           echo ::set-output name=hashtag::"sha-${GITHUB_SHA::8}"
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Cache Docker layers
         uses: actions/cache@v2.1.4
         with:
